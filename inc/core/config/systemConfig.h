@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /* [SYSTEM INFO] */
-#define SYSTEM_NAME "DiracOs"
+#define SYSTEM_NAME "My Little OS"
 #define SYSTEM_AUTHOR "Minkyu Kim"
 #define SYSTEM_VERSION_MAJOR 0
 #define SYSTEM_VERSION_MINOR 1
@@ -13,6 +13,7 @@
 
 /* [LOG] */
 #define SYSTEM_LOG_ENABLE 1
+#define SYSTEM_LOG_PREFIX "MARIO"
 #define SYSTEM_LOG_BACKEND_PRINTF 1
 #define SYSTEM_LOG_BACKEND_PRINTK 2
 #define SYSTEM_LOG_BACKEND_UART 3

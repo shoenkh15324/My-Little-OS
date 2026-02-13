@@ -77,15 +77,15 @@ void _logInternalArgs(int level,  const char* func, int line, const char* fmt, v
     #endif
     if(APP_LOG_LEVEL == SYSTEM_LOG_LEVEL_NONE){
         #if APP_LOG_TIMESTAMP
-            snprintf(buffer, sizeof(buffer), "%s | %s:%d [DIRAC] %s", timestamp, func, line, message);
+            snprintf(buffer, sizeof(buffer), "%s | %s:%d [%s] %s", timestamp, func, line, SYSTEM_LOG_PREFIX, message);
         #else
-            snprintf(buffer, sizeof(buffer), "%s:%d [DIRAC] %s", func, line, message);
+            snprintf(buffer, sizeof(buffer), "%s:%d [%s] %s", func, line, SYSTEM_LOG_PREFIX, message);
         #endif
     }else{
         #if APP_LOG_TIMESTAMP
-            snprintf(buffer, sizeof(buffer), "%s | %s:%d [DIRAC][%s] %s", timestamp, func, line, _logLevelToString(level), message);
+            snprintf(buffer, sizeof(buffer), "%s | %s:%d [%s][%s] %s", timestamp, func, line, SYSTEM_LOG_PREFIX, _logLevelToString(level), message);
         #else
-            snprintf(buffer, sizeof(buffer), "%s:%d [DIRAC][%s] %s", func, line, _logLevelToString(level), message);
+            snprintf(buffer, sizeof(buffer), "%s:%d [%s][%s] %s", func, line, SYSTEM_LOG_PREFIX, _logLevelToString(level), message);
         #endif
     }
     #if APP_LOG_MODE == SYSTEM_LOG_MODE_SYNC
