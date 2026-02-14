@@ -13,13 +13,14 @@ extern "C" {
 #if APP_OS == OS_LINUX
     #include <pthread.h>
     #include <semaphore.h>
+    #include <signal.h>
+    #include <time.h>
 #endif
 
 // Time / Tick
 int osalGetTimeMs(void);
 int osalGetTick(void);
 void osalDelayMs(int);
-void osalDelayTick(int);
 #if APP_OS == OS_LINUX
 int64_t osalGetTimeUs(void);
 int64_t osalGetTimeNs(void);
@@ -28,14 +29,48 @@ void osalGetDate(char*, size_t);
 #endif
 
 // Timer
-
+typedef void (*osalTimerCb)(void*);
+typedef struct{
+#if APP_OS == OS_LINUX
+    timer_t timerId;
+    struct sigevent signal;
+#endif
+    osalTimerCb userCb;
+    void* userArg;
+} osalTimer;
+int osalTimerOpen(osalTimer*, osalTimerCb, int);
+int osalTimerClose(osalTimer*);
 
 // Memory
 int osalMalloc(void**, size_t);
 int osalFree(void*);
 
 // Thread
-
+typedef void (*oslThreadEntry)(void *);
+typedef enum{
+    osalThreadPriorityIdle = 0,
+    osalThreadPriorityLow,
+    osalThreadPriorityBelowNormal,
+    osalThreadPriorityNormal,
+    osalThreadPriorityAboveNormal,
+    osalThreadPriorityHigh,
+    osalThreadPriorityRealtime,
+} osalThreadPriority;
+typedef struct{
+    const char* name;
+    size_t statckSize;
+    int priority;
+} osalThreadAttribute;
+typedef struct{
+#if APP_OS == OS_LINUX
+    pthread_t thread;
+    int isCreated;
+#endif
+} osalThread;
+int osalThreadOpen(osalThread*, const osalThreadAttribute*, oslThreadEntry, void*);
+int osalThreadSetPriority(osalThread*, osalThreadPriority);
+int osalThreadJoin(osalThread*);
+int osalThreadClose(osalThread*);
 
 // Mutex
 typedef struct{

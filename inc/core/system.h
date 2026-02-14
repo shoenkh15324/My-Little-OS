@@ -14,6 +14,10 @@
 #include "core/log.h"
 #include "core/buffer.h"
 
+#if APP_OS == OS_LINUX
+    #define _GNU_SOURCE
+#endif
+
 typedef enum{
     retOk = 0,
     retFail,

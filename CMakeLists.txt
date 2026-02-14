@@ -1,11 +1,16 @@
 cmake_minimum_required(VERSION 3.10)
-project(Dirac_Os)
+project(MyLittleOS)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     add_compile_options(-fdiagnostics-color=always)
 endif()
 
-add_executable(dirac_daemon 
+set(TARGET_NAME mario_daemon)
+
+find_package(Threads REQUIRED)
+find_library(RT_LIBRARY rt)
+
+add_executable(${TARGET_NAME} 
     main.c
     # Core
     src/core/system.c
@@ -23,12 +28,17 @@ add_executable(dirac_daemon
     src/app/sample/appBridge.c
 )
 
-target_include_directories(dirac_daemon
+target_include_directories(${TARGET_NAME}
     PRIVATE
         ${CMAKE_SOURCE_DIR}/inc
 )
 
-target_compile_definitions(dirac_daemon PUBLIC
+target_compile_definitions(${TARGET_NAME} PUBLIC
     DIRAC_OS=1
     APP_SAMPLE=1
+)
+
+target_link_libraries(${TARGET_NAME} PRIVATE 
+    Threads::Threads 
+    ${RT_LIBRARY}
 )
