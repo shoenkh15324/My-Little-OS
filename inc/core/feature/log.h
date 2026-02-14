@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-#include "app/appCommon.h"
+#include "core/sysDefs.h"
 
 #if APP_LOG_ENABLE
     #if APP_LOG_LEVEL >= SYSTEM_LOG_LEVEL_ERROR

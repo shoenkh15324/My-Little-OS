@@ -1,4 +1,4 @@
-#if defined (DIRAC_OS)
+#if defined (MY_LITTLE_OS)
     #include "core/system.h"
 #endif
 

@@ -7,23 +7,33 @@
 extern "C" {
 #endif
 
+#include "core/feature/osal.h"
 #include <time.h>
-#include "core/osal.h"
-#include "core/system.h"
 #if APP_OS == OS_LINUX
     #include <unistd.h>
     #include <sys/time.h>
     #include <errno.h>
 #endif
+#include "core/feature/log.h"
 
 // Time / Tick
-void osalGetDate(char* buf, size_t bufSize){
-    checkParamsVoid(buf, bufSize);
+static void _osalGetAbsTime(struct timespec* pTimeSpec, int timeoutMs) {
+    clock_gettime(CLOCK_MONOTONIC, pTimeSpec);
+    pTimeSpec->tv_sec += (timeoutMs / 1000);
+    pTimeSpec->tv_nsec += (long)(timeoutMs % 1000) * 1000000L;
+
+    if (pTimeSpec->tv_nsec >= 1000000000L) {
+        pTimeSpec->tv_sec += 1;
+        pTimeSpec->tv_nsec -= 1000000000L;
+    }
+}
+void osalGetDate(char* pBuf, size_t bufSize){
+    checkParamsVoid(pBuf, bufSize);
 #if APP_OS == OS_LINUX
     struct timeval  time;
     gettimeofday(&time, NULL);
     struct tm* tmInfo = localtime(&time.tv_sec);
-    snprintf(buf, bufSize, "%02d:%02d:%02d.%03ld", tmInfo->tm_hour, tmInfo->tm_min, tmInfo->tm_sec, time.tv_usec  / 1000);
+    snprintf(pBuf, bufSize, "%02d:%02d:%02d.%03ld", tmInfo->tm_hour, tmInfo->tm_min, tmInfo->tm_sec, time.tv_usec  / 1000);
 #endif
 }
 int osalGetTimeMs(void){
@@ -75,37 +85,38 @@ static void _timerCallbackWrapper(union sigval sigval){
     if(pTimer && pTimer->userCb) pTimer->userCb(pTimer->userArg);
 }
 #endif
-int osalTimerOpen(osalTimer* handle, osalTimerCb expiredCallback, int periodMs){
+int osalTimerOpen(osalTimer* pHandle, osalTimerCb expiredCallback, int periodMs){
 #if APP_TIMER == SYSTEM_OSAL_TIMER_ENABLE
-    checkParams(handle, expiredCallback, periodMs);
-    handle->userCb = expiredCallback;
-    handle->userArg = handle;
+    checkParams(pHandle, expiredCallback, periodMs);
+    pHandle->userCb = expiredCallback;
+    pHandle->userArg = pHandle;
     #if APP_OS == OS_LINUX
-        memset(&handle->signal, 0, sizeof(struct sigevent));
-        handle->signal.sigev_notify = SIGEV_THREAD;
-        handle->signal.sigev_notify_function = _timerCallbackWrapper;
-        handle->signal.sigev_value.sival_ptr = (void*)handle;
-        if(timer_create(CLOCK_REALTIME, &handle->signal, &handle->timerId)){ logError("timer_create fail");
+        memset(&pHandle->signal, 0, sizeof(struct sigevent));
+        pHandle->signal.sigev_notify = SIGEV_THREAD;
+        pHandle->signal.sigev_notify_function = _timerCallbackWrapper;
+        pHandle->signal.sigev_value.sival_ptr = (void*)pHandle;
+        if(timer_create(CLOCK_MONOTONIC, &pHandle->signal, &pHandle->timerId)){ logError("timer_create fail");
             return retFail;
         }
         struct itimerspec timerSpec;
+        memset(&timerSpec, 0, sizeof(timerSpec));
         timerSpec.it_value.tv_sec = periodMs / 1000;
         timerSpec.it_value.tv_nsec = (periodMs % 1000) * 1000000;
         timerSpec.it_interval.tv_sec = timerSpec.it_value.tv_sec;
         timerSpec.it_interval.tv_nsec = timerSpec.it_value.tv_nsec;
-        if(timer_settime(handle->timerId, 0, &timerSpec, NULL) == -1){ logError("timer_settime fail");
-            timer_delete(handle->timerId);
+        if(timer_settime(pHandle->timerId, 0, &timerSpec, NULL) == -1){ logError("timer_settime fail");
+            timer_delete(pHandle->timerId);
             return retFail;
         }
     #endif
 #endif
     return retOk;
 }
-int osalTimerClose(osalTimer* handle){
+int osalTimerClose(osalTimer* pHandle){
 #if APP_TIMER == SYSTEM_OSAL_TIMER_ENABLE
-    checkParams(handle);
+    checkParams(pHandle);
     #if APP_OS == OS_LINUX
-        if(timer_delete(handle->timerId)){ logError("timer_delete fail");
+        if(timer_delete(pHandle->timerId)){ logError("timer_delete fail");
             return retFail;
         }
     #endif
@@ -118,12 +129,12 @@ int osalTimerClose(osalTimer* handle){
 static alignas(APP_MEM_ALIGNMENT) uint8_t _memPool[APP_MEM_POOL_SIZE] = {0};
 static bool _memBlockUsed[APP_MEM_BLOCK_COUNT] = {0}; // 0 = free, 1 = used
 #endif
-int osalMalloc(void** handle, size_t size){
-    checkParams(handle, size);
+int osalMalloc(void** pHandle, size_t size){
+    checkParams(pHandle, size);
 #if APP_OS == OS_LINUX
     #if APP_MEM == SYSTEM_OSAL_DYNAMIC_MEM
-        *handle = malloc(size);
-        if(*handle == NULL){ logError("malloc fail");
+        *pHandle = malloc(size);
+        if(*pHandle == NULL){ logError("malloc fail");
             return retFail;
         }
     #elif APP_MEM == SYSTEM_OSAL_STATIC_MEM
@@ -133,7 +144,7 @@ int osalMalloc(void** handle, size_t size){
         for(int i = 0; i < APP_MEM_BLOCK_COUNT; i++){
             if(!_memBlockUsed[i]){
                 _memBlockUsed[i] = true;
-                *handle = &_memPool[i * APP_MEM_BLOCK_SIZE];
+                *pHandle = &_memPool[i * APP_MEM_BLOCK_SIZE];
                 return retOk;
             }
         }
@@ -145,13 +156,13 @@ int osalMalloc(void** handle, size_t size){
 #endif
     return retOk;
 }
-int osalFree(void* handle){
-    checkParams(handle);
+int osalFree(void* pHandle){
+    checkParams(pHandle);
 #if APP_OS == OS_LINUX
     #if APP_MEM == SYSTEM_OSAL_DYNAMIC_MEM
-        free(handle);
+        free(pHandle);
     #elif APP_MEM == SYSTEM_OSAL_STATIC_MEM
-        uint8_t* ptr = (uint8_t*)handle;
+        uint8_t* ptr = (uint8_t*)pHandle;
         ptrdiff_t offset = ptr - _memPool;
         if(ptr < _memPool || offset >= APP_MEM_POOL_SIZE) { logError("Out of memory pool range");
             return retFail;
@@ -170,9 +181,9 @@ int osalFree(void* handle){
 }
 
 // Thread
-int osalThreadOpen(osalThread* handle, const osalThreadAttribute* attr, oslThreadEntry threadEntryCb, void* userArg){
+int osalThreadOpen(osalThread* pHandle, const osalThreadAttribute* attr, oslThreadEntry threadEntryCb, void* userArg){
 #if APP_THREAD == SYSTEM_OSAL_THREAD_ENABLE
-    checkParams(handle, attr, threadEntryCb);
+    checkParams(pHandle, attr, threadEntryCb);
     #if APP_OS == OS_LINUX
         pthread_attr_t threadAttrLinux;
         if(pthread_attr_init(&threadAttrLinux)){ logError("pthread_attr_init fail");
@@ -184,19 +195,19 @@ int osalThreadOpen(osalThread* handle, const osalThreadAttribute* attr, oslThrea
                 return retFail; 
             }
         }
-        if(pthread_create(&(handle->thread), &threadAttrLinux, (void *(*)(void *))threadEntryCb, userArg)){ logError("pthread_create fail");
+        if(pthread_create(&(pHandle->thread), &threadAttrLinux, (void *(*)(void *))threadEntryCb, userArg)){ logError("pthread_create fail");
             pthread_attr_destroy(&threadAttrLinux);
             return retFail;
         }
-        handle->isCreated = 1;
+        pHandle->isCreated = 1;
         pthread_attr_destroy(&threadAttrLinux);
     #endif
 #endif
     return retOk;
 }
-int osalThreadSetPriority(osalThread* handle, osalThreadPriority priority){
+int osalThreadSetPriority(osalThread* pHandle, osalThreadPriority priority){
 #if APP_THREAD == SYSTEM_OSAL_THREAD_ENABLE
-    checkParams(handle);
+    checkParams(pHandle);
     #if APP_OS == OS_LINUX
         int policy = SCHED_OTHER;
         struct sched_param param;
@@ -207,43 +218,43 @@ int osalThreadSetPriority(osalThread* handle, osalThreadPriority priority){
             policy = SCHED_OTHER;
             param.sched_priority = 0;
         }
-        if(pthread_setschedparam(handle->thread, policy, &param)){ logError("pthread_setschedparam fail");
+        if(pthread_setschedparam(pHandle->thread, policy, &param)){ logError("pthread_setschedparam fail");
             return retFail;
         }
     #endif
 #endif
     return retOk;
 }
-int osalThreadJoin(osalThread* handle){
+int osalThreadJoin(osalThread* pHandle){
 #if APP_THREAD == SYSTEM_OSAL_THREAD_ENABLE
-    checkParams(handle);
+    checkParams(pHandle);
     #if APP_OS == OS_LINUX
-        if(handle->isCreated){
-            if(pthread_join(handle->thread, NULL)){ logError("pthread_join fail");
+        if(pHandle->isCreated){
+            if(pthread_join(pHandle->thread, NULL)){ logError("pthread_join fail");
                 return retFail;
             }
         }
-        handle->isCreated = 0;
+        pHandle->isCreated = 0;
     #endif
 #endif
     return retOk;
 }
-int osalThreadClose(osalThread* handle){
+int osalThreadClose(osalThread* pHandle){
 #if APP_THREAD == SYSTEM_OSAL_THREAD_ENABLE
-    checkParams(handle);
+    checkParams(pHandle);
     #if APP_OS == OS_LINUX
-        if(handle->isCreated) pthread_detach(handle->thread);
-        handle->thread = 0;
-        handle->isCreated = 0;
+        if(pHandle->isCreated) pthread_detach(pHandle->thread);
+        pHandle->thread = 0;
+        pHandle->isCreated = 0;
     #endif
 #endif
     return retOk;
 }
 
 // Mutex
-int osalMutexOpen(osalMutex* handle){
+int osalMutexOpen(osalMutex* pHandle){
 #if APP_MUTEX == SYSTEM_OSAL_MUTEX_ENABLE
-    checkParams(handle);
+    checkParams(pHandle);
     #if APP_OS == OS_LINUX
         pthread_mutexattr_t attr;
         if(pthread_mutexattr_init(&attr)){ logError("pthread_mutexattr_init fail");
@@ -257,7 +268,7 @@ int osalMutexOpen(osalMutex* handle){
             pthread_mutexattr_destroy(&attr);
             return retFail;
         }
-        if(pthread_mutex_init(&(handle->mutex), &attr)){ logError("pthread_mutex_init fail");
+        if(pthread_mutex_init(&(pHandle->mutex), &attr)){ logError("pthread_mutex_init fail");
             return retFail;
         }
         if(pthread_mutexattr_destroy(&attr)){ logError("pthread_mutexattr_destroy fail");
@@ -267,55 +278,47 @@ int osalMutexOpen(osalMutex* handle){
 #endif
     return retOk;
 }
-int osalMutexClose(osalMutex* handle){
+int osalMutexClose(osalMutex* pHandle){
 #if APP_MUTEX == SYSTEM_OSAL_MUTEX_ENABLE
-    checkParams(handle);
+    checkParams(pHandle);
     #if APP_OS == OS_LINUX
-        if(pthread_mutex_destroy(&(handle->mutex))){ logError("pthread_mutex_destroy fail");
+        if(pthread_mutex_destroy(&(pHandle->mutex))){ logError("pthread_mutex_destroy fail");
             return retFail;
         }
     #endif
 #endif
     return retOk;
 }
-int osalMutexLock(osalMutex* handle){
+int osalMutexLock(osalMutex* pHandle, int timeoutMs){
 #if APP_MUTEX == SYSTEM_OSAL_MUTEX_ENABLE
-    checkParams(handle);
+    checkParams(pHandle);
     #if APP_OS == OS_LINUX
-        #if defined(APP_MUTEX_LOCK_TIMEOUT_MS) && (APP_MUTEX_LOCK_TIMEOUT_MS > 0)
-            struct timespec timeSpec;
-            if(clock_gettime(CLOCK_REALTIME, &timeSpec)){ logError("clock_gettime fail");
-                return retFail;
+        int res = 0;
+        if(timeoutMs < 0){
+            res = pthread_mutex_lock(&pHandle->mutex);
+        }else if (timeoutMs == 0){
+            res = pthread_mutex_trylock(&pHandle->mutex);
+        }else{
+            struct timespec absTime;
+            _osalGetAbsTime(&absTime, timeoutMs);
+            res = pthread_mutex_timedlock(&pHandle->mutex, &absTime);
+        }
+        if(res != 0){
+            if(res == ETIMEDOUT){ logError("Mutex Lock: Timeout (%dms)", timeoutMs);
+                return retTimeout;
             }
-            timeSpec.tv_sec += (APP_MUTEX_LOCK_TIMEOUT_MS / 1000);
-            timeSpec.tv_nsec += (APP_MUTEX_LOCK_TIMEOUT_MS % 1000) * 1000000;
-            if(timeSpec.tv_nsec >= 1000000000){
-                timeSpec.tv_sec += 1;
-                timeSpec.tv_nsec -= 1000000000;
-            }
-            int res = pthread_mutex_timedlock(&(handle->mutex), &timeSpec);
-            if(res != 0){
-                if(res == ETIMEDOUT){
-                    logError("osalMutexLock: timeout occurred");
-                }else{
-                    logError("osalMutexLock: fail");
-                }
-                return retFail;
-            }
-        #else
-            if(pthread_mutex_lock(&(handle->mutex))){ logError("pthread_mutex_lock fail");
-                return retFail;
-            }
-        #endif
+            logError("Mutex Lock: Error (%d)", res);
+            return retFail;
+        }
     #endif
 #endif
     return retOk;
 }
-int osalMutexUnlock(osalMutex* handle){
+int osalMutexUnlock(osalMutex* pHandle){
 #if APP_MUTEX == SYSTEM_OSAL_MUTEX_ENABLE
-    checkParams(handle);
+    checkParams(pHandle);
     #if APP_OS == OS_LINUX
-        if(pthread_mutex_unlock(&(handle->mutex))){ logError("pthread_mutex_unlock fail");
+        if(pthread_mutex_unlock(&(pHandle->mutex))){ logError("pthread_mutex_unlock fail");
             return retFail;
         }
     #endif
@@ -324,9 +327,9 @@ int osalMutexUnlock(osalMutex* handle){
 }
 
 // Semaphore
-int osalSemaphoreOpen(osalSemaphore* handle, int count){
+int osalSemaphoreOpen(osalSemaphore* pHandle, int count){
 #if APP_SEMAPHORE == SYSTEM_OSAL_SEMAPHORE_ENABLE
-    checkParams(handle, count);
+    checkParams(pHandle, count);
     unsigned int initCount = 0;
     #if APP_SEMAPHORE_TYPE == SYSTEM_OSAL_SEMAPHORE_TYPE_BINARY
         initCount = (count > 0) ? 1 : 0;
@@ -334,7 +337,7 @@ int osalSemaphoreOpen(osalSemaphore* handle, int count){
         initCount = (count == -1) ? APP_SEMAPHORE_MAX_COUNT : (unsigned int)count;
     #endif
     #if APP_OS == OS_LINUX
-        if(sem_init(&(handle->sema), 0, initCount) != 0) {
+        if(sem_init(&(pHandle->sema), 0, initCount) != 0) {
             logError("sem_init fail");
             return retFail;
         }
@@ -342,54 +345,47 @@ int osalSemaphoreOpen(osalSemaphore* handle, int count){
 #endif
     return retOk;
 }
-int osalSemaphoreClose(osalSemaphore* handle){
+int osalSemaphoreClose(osalSemaphore* pHandle){
 #if APP_SEMAPHORE == SYSTEM_OSAL_SEMAPHORE_ENABLE
-    checkParams(handle);
+    checkParams(pHandle);
     #if APP_OS == OS_LINUX
-        if(sem_destroy(&(handle->sema)) != 0){ logError("sem_destroy fail");
+        if(sem_destroy(&(pHandle->sema)) != 0){ logError("sem_destroy fail");
             return retFail;
         }
     #endif
 #endif
     return retOk;
 }
-int osalSemaphoreTake(osalSemaphore* handle){
+int osalSemaphoreTake(osalSemaphore* pHandle, int timeoutMs){
 #if APP_SEMAPHORE == SYSTEM_OSAL_SEMAPHORE_ENABLE
-    checkParams(handle);
+    checkParams(pHandle);
     #if APP_OS == OS_LINUX
-        #if defined(APP_SEMAPHORE_TIMEOUT_MS) && (APP_SEMAPHORE_TIMEOUT_MS > 0)
-            struct timespec ts;
-            if(clock_gettime(CLOCK_REALTIME, &ts) == -1){ logError("clock_gettime fail");
-                return retFail;
+        int res = 0;
+        if(timeoutMs < 0){
+            res = sem_wait(&pHandle->sema);
+        }else if (timeoutMs == 0){
+            res = sem_trywait(&pHandle->sema);
+        }else{
+            struct timespec absTime;
+            _osalGetAbsTime(&absTime, timeoutMs);
+            res = sem_timedwait(&pHandle->sema, &absTime);
+        }
+        if(res != 0){
+            if(errno == ETIMEDOUT){ logError("Semaphore Take: Timeout (%dms)", timeoutMs);
+                return retTimeout;
             }
-            ts.tv_sec += (APP_SEMAPHORE_TIMEOUT_MS / 1000);
-            ts.tv_nsec += (APP_SEMAPHORE_TIMEOUT_MS % 1000) * 1000000;
-            if(ts.tv_nsec >= 1000000000){
-                ts.tv_sec += 1;
-                ts.tv_nsec -= 1000000000;
-            }
-            if(!sem_timedwait(&(handle->sema), &ts)){
-                if(errno == ETIMEDOUT){
-                    logError("osalSemaphoreTake: timeout");
-                }else{
-                    logError("osalSemaphoreTake: fail");
-                }
-                return retFail;
-            }
-        #else
-            if(sem_wait(&(handle->sema)) != 0){ logError("sem_wait fail");
-                return retFail;
-            }
-        #endif
+            logError("Semaphore Take: Fail (errno=%d)", errno);
+            return retFail;
+        }
     #endif
 #endif
     return retOk;
 }
-int osalSemaphoreGive(osalSemaphore* handle){
+int osalSemaphoreGive(osalSemaphore* pHandle){
 #if APP_SEMAPHORE == SYSTEM_OSAL_SEMAPHORE_ENABLE
-    checkParams(handle);
+    checkParams(pHandle);
     #if APP_OS == OS_LINUX
-        if(sem_post(&(handle->sema)) != 0){ logError("sem_post fail");
+        if(sem_post(&(pHandle->sema)) != 0){ logError("sem_post fail");
             return retFail;
         }
     #endif

@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-#include "core/log.h"
+#include "core/feature/log.h"
 #if APP_LOG_ENABLE
 #include <stdio.h>
 #include <string.h>

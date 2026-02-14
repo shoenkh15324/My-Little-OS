@@ -14,10 +14,10 @@ add_executable(${TARGET_NAME}
     main.c
     # Core
     src/core/system.c
-    src/core/osal.c
-    src/core/log.c
-    src/core/buffer.c
-    src/core/async.c
+    src/core/feature/osal.c
+    src/core/feature/log.c
+    src/core/feature/buffer.c
+    src/core/feature/async.c
     # Driver
     src/driver/driverCommon.c
     # Service
@@ -34,7 +34,7 @@ target_include_directories(${TARGET_NAME}
 )
 
 target_compile_definitions(${TARGET_NAME} PUBLIC
-    DIRAC_OS=1
+    MY_LITTLE_OS=1
     APP_SAMPLE=1
 )
 

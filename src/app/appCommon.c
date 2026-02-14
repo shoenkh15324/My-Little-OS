@@ -4,4 +4,14 @@
  ******************************************************************************/
 #include "core/system.h"
 #include "service/serviceCommon.h"
-#include "driver/driverCommon.h"
+
+int appCommonClose(void){
+    int result = retOk;
+    if(appClose()){ logError("appClose fail"); result = retFail; }
+    return result;
+}
+int appCommonOpen(void){
+    int result = retOk;
+    if(appOpen()){ logError("appOpen fail"); result = retFail; }
+    return result;
+}

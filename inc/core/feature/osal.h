@@ -7,9 +7,7 @@
 extern "C" {
 #endif
 
-#include <stdint.h>
-#include "app/appCommon.h"
-
+#include "core/sysDefs.h"
 #if APP_OS == OS_LINUX
     #include <pthread.h>
     #include <semaphore.h>
@@ -80,7 +78,7 @@ typedef struct{
 } osalMutex;
 int osalMutexOpen(osalMutex*);
 int osalMutexClose(osalMutex*);
-int osalMutexLock(osalMutex*);
+int osalMutexLock(osalMutex*, int);
 int osalMutexUnlock(osalMutex*);
 
 // Semaphore
@@ -91,7 +89,7 @@ typedef struct{
 } osalSemaphore;
 int osalSemaphoreOpen(osalSemaphore*, int);
 int osalSemaphoreClose(osalSemaphore*);
-int osalSemaphoreTake(osalSemaphore*);
+int osalSemaphoreTake(osalSemaphore*, int);
 int osalSemaphoreGive(osalSemaphore*);
 
 // Etc
