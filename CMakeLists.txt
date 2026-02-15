@@ -18,6 +18,7 @@ add_executable(${TARGET_NAME}
     src/core/feature/log.c
     src/core/feature/buffer.c
     src/core/feature/async.c
+    src/core/feature/active.c
     # Driver
     src/driver/driverCommon.c
     # Service

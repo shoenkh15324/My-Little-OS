@@ -43,23 +43,25 @@
 // THREAD
 #define APP_THREAD SYSTEM_OSAL_THREAD_ENABLE
 #if APP_THREAD
-    #define APP_THREAD_MAX_COUNT 1
-    #if APP_THREAD_MAX_COUNT == 1
-        #define APP_THREAD_STACK_SIZE (256 * 1024)
-        #define APP_THREAD_EVENT_QUEUE_SIZE (256 * 1024)
-        #define APP_THREAD_EVENT_PAYLOAD_BUFFER_SIZE 1024
-    #elif APP_THREAD_MAX_COUNT >= 2
-        #define APP_MAIN_THREAD_STACK_SIZE (1 * 1024)
-        #define APP_MAIN_THREAD_EVENT_QUEUE_SIZE (5 * 1024)
-        #if APP_LOG_MODE == SYSTEM_LOG_MODE_ASYNC
-            #define APP_LOG_THREAD_STACK_SIZE (1 * 1024)
-        #endif
+    #define APP_THREAD_MAX_COUNT 2
+    #if APP_THREAD_MAX_COUNT >= 1
+        #define APP_MAIN_THREAD_STACK_SIZE (256 * 1024)
+        #define APP_MAIN_THREAD_EVENT_QUEUE_SIZE (256 * 1024)
+        #define APP_MAIN_THREAD_PAYLOAD_BUFFER_SIZE 1024
+        #if APP_THREAD_MAX_COUNT >= 2
+            #define APP_TEST_THREAD_STACK_SIZE (256 * 1024)
+            #define APP_TEST_THREAD_EVENT_QUEUE_SIZE (256 * 1024)
+            #define APP_TEST_THREAD_PAYLOAD_BUFFER_SIZE 1024
+            #if APP_LOG_MODE == SYSTEM_LOG_MODE_ASYNC
+                #define APP_LOG_THREAD_STACK_SIZE (1 * 1024)
+            #endif
+    #endif
     #endif
 #endif
 // TIMER
 #define APP_TIMER SYSTEM_OSAL_TIMER_ENABLE
 #if APP_TIMER
-    #define APP_TIMER_INTERVAL 1000
+    #define APP_TIMER_INTERVAL 500
 #endif
 // MEMORY
 #define APP_MEM SYSTEM_OSAL_DYNAMIC_MEM

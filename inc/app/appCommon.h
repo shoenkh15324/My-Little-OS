@@ -11,6 +11,10 @@ typedef enum{
     appMainEventStart = objSyncBegin,
         appMainEventTimer,
     appMainEventEnd,
+    appTestEventStart,
+        appTestEventTimer,
+    appTestEventEnd,
+    
 } appEventList;
 
 int appCommonClose(void);

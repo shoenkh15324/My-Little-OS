@@ -28,7 +28,7 @@ void osalGetDate(char*, size_t);
 #endif
 
 // Timer
-typedef void (*osalTimerCb)(void*);
+typedef void (*osalTimerCb)(void);
 typedef struct{
 #if (APP_OS == OS_LINUX) && APP_EPOLL
     int timerFd;

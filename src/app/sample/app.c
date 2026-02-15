@@ -4,108 +4,80 @@
  ******************************************************************************/
 #include "app/appCommon.h"
 
-static appMain _appMain = {
-    .actObj.objState = objStateClosed, 
-    .appThreadAttr.name = "main",
-    .appThreadAttr.priority = osalThreadPriorityIdle,
-    .appThreadAttr.statckSize = APP_THREAD_STACK_SIZE,
-};
+static void _appMainTimerHandler(activeObject* actor);
+static void _appMainEventHandler(activeObject* actor, asyncPacket* pAsync, uint8_t* pPayload);
+static void _appTestEventHandler(activeObject* actor, asyncPacket* pAsync, uint8_t* pPayload);
 
-static void _appEventHandler(asyncPacket* pAsync, uint8_t* pPayload){
-    osalMutexLock(&_appMain.actObj.objMutex, -1);
+static appMain _appMain = {
+    .actor.isMainThread = true,
+    .actor.objState = objStateClosed, 
+    .actor.eventQueueSize = APP_MAIN_THREAD_EVENT_QUEUE_SIZE,
+    .actor.appThreadAttr.name = "main",
+    .actor.appThreadAttr.priority = osalThreadPriorityNormal,
+    .actor.appThreadAttr.statckSize = APP_MAIN_THREAD_STACK_SIZE,
+    .actor.appThreadHandler = _appMainEventHandler,
+    .actor.appTimerHandler = _appMainTimerHandler,
+    .actor.appEventIdxStart = appMainEventStart,
+    .actor.appEventIdxEnd = appMainEventEnd,
+    .actor.payloadBufferSize = APP_MAIN_THREAD_PAYLOAD_BUFFER_SIZE,
+};
+static appTest _appTest = {
+    .actor.objState = objStateClosed, 
+    .actor.eventQueueSize = APP_TEST_THREAD_EVENT_QUEUE_SIZE,
+    .actor.appThreadAttr.name = "test",
+    .actor.appThreadAttr.priority = osalThreadPriorityIdle,
+    .actor.appThreadAttr.statckSize = APP_TEST_THREAD_STACK_SIZE,
+    .actor.appThreadHandler = _appTestEventHandler,
+    .actor.appEventIdxStart = appTestEventStart,
+    .actor.appEventIdxEnd = appTestEventEnd,
+    .actor.payloadBufferSize = APP_TEST_THREAD_PAYLOAD_BUFFER_SIZE,
+};
+static void _appMainTimerHandler(activeObject* actor){ //logDebug("_appMainTimerHandler");
+    if(actor->isMainThread){
+        if(asyncPush(asyncTypeAsync, appMainEventTimer, NULL, NULL, NULL, NULL)){ logError("asyncPush fail"); }
+        if(actor->appTimerCount > 2000){
+            if(asyncPush(asyncTypeAsync, appTestEventTimer, NULL, NULL, NULL, NULL)){ logError("asyncPush fail"); }
+            actor->appTimerCount = 0;
+        }
+        actor->appTimerCount += APP_TIMER_INTERVAL;
+    }
+}
+static void _appMainEventHandler(activeObject* actor, asyncPacket* pAsync, uint8_t* pPayload){
+    osalMutexLock(&actor->objMutex, -1);
     switch(pAsync->eventId){
         case appMainEventTimer: logDebug("appMainEventTimer");
             break;
     }
 appEventHandlerExit:
-    osalMutexUnlock(&_appMain.actObj.objMutex);
+    osalMutexUnlock(&actor->objMutex);
 }
-static void _appTimerHandler(void* arg){ //logDebug("_appTimerHandler");
-    if(asyncPush(asyncTypeAsync, appMainEventTimer, NULL, NULL, NULL, NULL)){
-        logError("asyncPush fail");
+static void _appTestEventHandler(activeObject* actor, asyncPacket* pAsync, uint8_t* pPayload){
+    osalMutexLock(&actor->objMutex, -1);
+    switch(pAsync->eventId){
+        case appTestEventTimer: logDebug("appTestEventTimer");
+            break;
     }
-}
-static void _appThreadHandler(void){
-    if(_appMain.actObj.objState < objStateOpened){ logError("objState(%d) < objStateOpened", _appMain.actObj.objState); return; }
-    asyncPacket async;
-    for(;;){
-#if APP_OS == OS_LINUX
-        int fd; uint64_t expired;
-        if(!osalEpollWait(&_appMain.actObj.objEpoll, &fd, -1)){
-            if(fd == _appMain.actObj.objEpoll.eventFd){ //logDebug("eventFd");
-                read(fd, &expired, sizeof(expired));
-                while(asyncPop(&_appMain.actObj, &async, &_appMain.payloadBuf)){ //logDebug("_appEventHandler");
-                    _appEventHandler(&async, &_appMain.payloadBuf);
-                }
-            }else if(fd == _appMain.appTimer.timerFd){ //logDebug("timerFd");
-                read(fd, &expired, sizeof(expired));
-                if(_appMain.appTimer.timerCb){ _appMain.appTimer.timerCb(_appMain.appTimer.timerArg); }
-            }
-        }
-#else
-        if(osalSemaphoreTake(&_appMain.actObj.objSema, -1)){
-            while(!asyncPop(&_appMain.actObj, &async, &_appMain.payloadBuf)){
-                _appEventHandler(&async, &_appMain.payloadBuf);
-            }
-        }
-#endif
-    }
+appEventHandlerExit:
+    osalMutexUnlock(&actor->objMutex);
 }
 int appClose(void){
-    int result = retOk;
-    if(_appMain.actObj.objState >= objStateOpening){
-        osalMutexLock(&_appMain.actObj.objMutex, -1);
-        _appMain.actObj.objState = objStateClosing;
-        osalMutexUnlock(&_appMain.actObj.objMutex);
-#if APP_OS == OS_LINUX
-        osalEpollNotify(&_appMain.actObj.objEpoll);
-#endif
-        if(osalThreadClose(&_appMain.appThread)){ logError("osalThreadClose fail");
-            return retFail;
-        }
-        if(osalTimerClose(&_appMain.appTimer)){ logError("osalTimerClose fail");
-            return retFail;
-        }
-        if(osalEpollClose(&_appMain.actObj.objEpoll)){ logError("osalEpollClose fail");
-            return retFail;
-        }
-        _appMain.actObj.objState = objStateClosed;
-        osalMutexClose(&_appMain.actObj.objMutex); 
+    if(activeClose(&_appMain.actor)){ logError("activeClose fail");
+        return retFail;
     }
-    return result;
+    if(activeClose(&_appTest.actor)){ logError("activeClose fail");
+        return retFail;
+    }
+    return retOk;
 }
 int appOpen(void){
-    int result = retOk;
-    osalMutexOpen(&_appMain.actObj.objMutex);
-    osalSemaphoreOpen(&_appMain.actObj.objSema, -1);
-#if APP_OS == OS_LINUX
-    osalEpollOpen(&_appMain.actObj.objEpoll);
-#endif
-    osalMutexLock(&_appMain.actObj.objMutex, -1);
-    _appMain.actObj.objState = objStateOpening;
-    //
-    if(bufferOpen(&_appMain.actObj.eventQueue, APP_THREAD_EVENT_QUEUE_SIZE)){ logError("bufferOpen fail");
-        result = retFail; goto appOpenExit;
+    if(activeOpen(&_appMain.actor)){ logError("activeOpen fail");
+        return retFail;
     }
-    if(asyncSubscribe(&_appMain.actObj, appMainEventStart, appMainEventEnd)){ logError("asyncSubscribe fail");
-        result = retFail; goto appOpenExit;
+    if(activeOpen(&_appTest.actor)){ logError("activeOpen fail");
+        return retFail;
     }
-    if(osalTimerOpen(&_appMain.appTimer, _appTimerHandler, APP_TIMER_INTERVAL)){ logError("osalTimerOpen fail");
-        result = retFail; goto appOpenExit;
-    }
-#if APP_OS == OS_LINUX
-    if(osalEpollAddFd(&_appMain.actObj.objEpoll, _appMain.appTimer.timerFd, osalEpollEventFlagIn)){ logError("osalEpollAddFd(timer) fail"); 
-        result = retFail; goto appOpenExit;
-    }
-#endif
-    if(osalThreadOpen(&_appMain.appThread, &_appMain.appThreadAttr, _appThreadHandler, NULL)){ logError("osalThreadOpen fail");
-        result = retFail; goto appOpenExit;
-    }
-    //
-    _appMain.actObj.objState = objStateOpened;
 appOpenExit:
-    osalMutexUnlock(&_appMain.actObj.objMutex);
-    return result;
+    return retOk;
 }
 int appSync(uint16_t, uintptr_t, uintptr_t, uintptr_t, uintptr_t){
     return retOk;

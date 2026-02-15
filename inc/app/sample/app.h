@@ -6,12 +6,11 @@
 #include "core/system.h"
 
 typedef struct{
-    activeObject actObj;
-    osalThread appThread;
-    osalThreadAttribute appThreadAttr;
-    osalTimer appTimer;
-    uint8_t payloadBuf[APP_THREAD_EVENT_PAYLOAD_BUFFER_SIZE];
+    activeObject actor;
 } appMain;
+typedef struct{
+    activeObject actor;
+} appTest;
 
 int appClose(void);
 int appOpen(void);
