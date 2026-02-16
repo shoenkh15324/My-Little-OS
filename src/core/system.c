@@ -1,9 +1,9 @@
 /******************************************************************************
- *  Author : Mingyu Kim
+ *  Author : Minkyu Kim
  *  Created: 2026-02-10
  ******************************************************************************/
+#include "appCfgSelector.h"
 #include "core/system.h"
-#include "core/config/platformConfig.h"
 #include "app/appCommon.h"
 
 int systemClose(void){

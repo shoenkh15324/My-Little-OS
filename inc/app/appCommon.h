@@ -1,22 +1,13 @@
 #pragma once
 /******************************************************************************
- *  Author : Mingyu Kim
+ *  Author : Minkyu Kim
  *  Created: 2026-02-10
  ******************************************************************************/
+#include "core/systemDefs.h"
+
 #if defined (APP_SAMPLE)
     #include "app/sample/app.h"
 #endif
-
-typedef enum{
-    // appMain
-    appMainEventStart = objSyncBegin,
-        appMainEventTimer,
-    appMainEventEnd = 99,
-    // appTest
-    appTestEventStart = 100,
-        appTestEventTimer,
-    appTestEventEnd = 199,
-} appEventList;
 
 int appCommonClose(void);
 int appCommonOpen(void);

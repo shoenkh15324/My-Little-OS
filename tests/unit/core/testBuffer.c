@@ -1,5 +1,5 @@
 /******************************************************************************
- *  Author : Mingyu Kim
+ *  Author : Minkyu Kim
  *  Created: 2026-02-15
  *  Description: Full unit tests for ring buffer with PASS/FAIL and stats check
  ******************************************************************************/

@@ -1,17 +1,16 @@
 #pragma once
 /******************************************************************************
- *  Author : Mingyu Kim
+ *  Author : Minkyu Kim
  *  Created: 2026-02-13
  ******************************************************************************/
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include "core/sysDefs.h"
+#include "core/systemDefs.h"
 #if APP_OS == OS_LINUX
     #include <pthread.h>
     #include <semaphore.h>
-    //#include <signal.h>
     #include <time.h>
     #include <sys/epoll.h>
 #endif
@@ -30,7 +29,7 @@ void osalGetDate(char*, size_t);
 // Timer
 typedef void (*osalTimerCb)(void);
 typedef struct{
-#if (APP_OS == OS_LINUX) && APP_EPOLL
+#if APP_OS == OS_LINUX
     int timerFd;
     osalTimerCb timerCb;
     void* timerArg;

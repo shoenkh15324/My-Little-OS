@@ -1,7 +1,8 @@
 /******************************************************************************
- *  Author : Mingyu Kim
+ *  Author : Minkyu Kim
  *  Created: 2026-02-14
  ******************************************************************************/
+#include "appCfgSelector.h"
 #include "app/appCommon.h"
 
 static void _appMainTimerHandler(void*);

@@ -1,13 +1,13 @@
 #pragma once
 /******************************************************************************
- *  Author : Mingyu Kim
+ *  Author : Minkyu Kim
  *  Created: 2026-02-10
  ******************************************************************************/
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include "core/sysDefs.h"
+#include "core/systemDefs.h"
 
 #if APP_LOG_ENABLE
     #if APP_LOG_LEVEL >= SYSTEM_LOG_LEVEL_ERROR

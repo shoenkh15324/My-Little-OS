@@ -1,9 +1,11 @@
 #pragma once
 /******************************************************************************
- *  Author : Mingyu Kim
+ *  Author : Minkyu Kim
  *  Created: 2026-02-14
  ******************************************************************************/
-#include "core/sysDefs.h"
+#include "appCfgSelector.h"
+
+#include "core/systemDefs.h"
 #include "core/config/platformConfig.h"
 #include "core/feature/log.h"
 #include "core/feature/buffer.h"

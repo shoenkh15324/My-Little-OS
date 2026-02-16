@@ -1,13 +1,13 @@
 #pragma once
 /******************************************************************************
- *  Author : Mingyu Kim
+ *  Author : Minkyu Kim
  *  Created: 2026-02-12
  ******************************************************************************/
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include "core/sysDefs.h"
+#include "core/systemDefs.h"
 
 typedef struct{
     uint8_t* pBuf;

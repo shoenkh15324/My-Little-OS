@@ -1,7 +1,8 @@
 /******************************************************************************
- *  Author : Mingyu Kim
+ *  Author : Minkyu Kim
  *  Created: 2026-02-15
  ******************************************************************************/
+#include "appCfgSelector.h"
 
 #include "core/feature/active.h"
 #include "core/feature/log.h"

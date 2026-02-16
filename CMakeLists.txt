@@ -1,6 +1,13 @@
 cmake_minimum_required(VERSION 3.10)
 project(MyLittleOS)
 
+# Default app target if not specified
+if(NOT DEFINED APP_TARGET)
+    set(APP_TARGET "sample")
+endif()
+
+message(STATUS "Building for app: ${APP_TARGET}")
+
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     add_compile_options(-fdiagnostics-color=always)
 endif()
@@ -30,9 +37,15 @@ add_executable(${TARGET_NAME}
 target_include_directories(${TARGET_NAME} PRIVATE
         ${CMAKE_SOURCE_DIR}/inc
 )
+# Generate the compile definition string: APP_SAMPLE, APP_SAMPLE2, etc.
+set(APP_DEFINE "APP_${APP_TARGET}")
+string(TOUPPER "${APP_DEFINE}" APP_DEFINE_UPPER)
+
+message(STATUS "Building for app: ${APP_TARGET} (define: ${APP_DEFINE_UPPER})")
+
 target_compile_definitions(${TARGET_NAME} PUBLIC
     MY_LITTLE_OS=1
-    APP_SAMPLE=1
+    ${APP_DEFINE_UPPER}=1
 )
 target_link_libraries(${TARGET_NAME} PRIVATE 
     Threads::Threads 

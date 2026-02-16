@@ -1,8 +1,7 @@
 /******************************************************************************
- *  Author : Mingyu Kim
+ *  Author : Minkyu Kim
  *  Created: 2026-02-10
  ******************************************************************************/
-#include "core/system.h"
 #include "service/serviceCommon.h"
 
 int appCommonClose(void){

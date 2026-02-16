@@ -1,11 +1,14 @@
 #pragma once
 /******************************************************************************
- *  Author : Mingyu Kim
+ *  Author : Minkyu Kim
  *  Created: 2026-02-15
  ******************************************************************************/
+#ifdef __cplusplus
+extern "C" {
+#endif
 
+#include "core/systemDefs.h"
 #include "core/feature/async.h"
-#include "core/sysDefs.h"
 #include "core/feature/buffer.h"
 #include "core/feature/osal.h"
 
@@ -38,3 +41,7 @@ typedef struct {
 
 int activeOpen(activeObject*);
 int activeClose(activeObject*);
+
+#ifdef __cplusplus
+}
+#endif

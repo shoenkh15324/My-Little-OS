@@ -1,12 +1,13 @@
 #pragma once
 /******************************************************************************
- *  Author : Mingyu Kim
+ *  Author : Minkyu Kim
  *  Created: 2026-02-13
  ******************************************************************************/
 #ifdef __cplusplus
 extern "C" {
 #endif
-#include "core/sysDefs.h"
+
+#include "core/systemDefs.h"
 
 typedef enum{
     asyncTypeAsync = 0,
