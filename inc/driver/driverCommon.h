@@ -6,7 +6,7 @@
 #include "appCfgSelector.h"
 
 #include "core/systemDefs.h"
-#include "core/config/platformConfig.h"
+#include "driverDefs.h"
 #include "core/feature/log.h"
 #include "core/feature/buffer.h"
 #include "core/feature/async.h"

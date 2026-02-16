@@ -1,10 +1,5 @@
 #pragma once
 /******************************************************************************
  *  Author : Minkyu Kim
- *  Created: 2026-02-14
+ *  Created: 2026-02-16
  ******************************************************************************/
-#include "driver/driverCommon.h"
-#include "serviceDefs.h"
-
-int serviceCommonClose(void);
-int serviceCommonOpen(void);

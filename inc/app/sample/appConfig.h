@@ -3,7 +3,10 @@
  *  Author : Minkyu Kim
  *  Created: 2026-02-12
  ******************************************************************************/
-#include "core/config/platformConfig.h"
+#include "core/systemDefs.h"
+#include "driver/driverDefs.h"
+#include "service/serviceDefs.h"
+
 #if defined (APP_SAMPLE)
 
 /* [INFO]*/
