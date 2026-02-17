@@ -2,12 +2,11 @@
  *  Author : Minkyu Kim
  *  Created: 2026-02-13
  ******************************************************************************/
-#include "appCfgSelector.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#include "appCfgSelector.h"
 #include "core/feature/osal.h"
 #include <time.h>
 #if APP_OS == OS_LINUX
@@ -20,7 +19,8 @@ extern "C" {
 #include "core/feature/log.h"
 
 // Time / Tick
-static void _osalGetAbsTime(struct timespec* pTimeSpec, int timeoutMs) {
+static void _osalGetAbsTime(struct timespec* pTimeSpec, int timeoutMs){
+#if APP_OS == OS_LINUX
     clock_gettime(CLOCK_MONOTONIC, pTimeSpec);
     pTimeSpec->tv_sec += (timeoutMs / 1000);
     pTimeSpec->tv_nsec += (long)(timeoutMs % 1000) * 1000000L;
@@ -29,6 +29,7 @@ static void _osalGetAbsTime(struct timespec* pTimeSpec, int timeoutMs) {
         pTimeSpec->tv_sec += 1;
         pTimeSpec->tv_nsec -= 1000000000L;
     }
+#endif
 }
 void osalGetDate(char* pBuf, size_t bufSize){
     if(!pBuf || !bufSize){ logError("Invaild Params"); return; }
@@ -82,7 +83,7 @@ void osalSleepUs(int us){
 }
 
 // Timer
-int osalTimerOpen(osalTimer* pHandle, osalTimerCb expiredCallback, int periodMs){
+int osalTimerOpen(osalTimer* pHandle, osalTimerCb expiredCallback, void* arg, int periodMs){
 #if APP_TIMER == SYSTEM_OSAL_TIMER_ENABLE
     if(!pHandle || !expiredCallback || !periodMs){ logError("Invaild Params"); return retInvalidParam; }
     #if (APP_OS == OS_LINUX) && APP_EPOLL
@@ -91,12 +92,11 @@ int osalTimerOpen(osalTimer* pHandle, osalTimerCb expiredCallback, int periodMs)
             return retFail;
         }
         pHandle->timerCb = expiredCallback;
-        pHandle->timerArg = pHandle;
+        pHandle->timerArg = arg;
         struct itimerspec its;
         its.it_value.tv_sec = periodMs / 1000;
         its.it_value.tv_nsec = (periodMs % 1000) * 1000000;
-        its.it_interval.tv_sec = its.it_value.tv_sec;
-        its.it_interval.tv_nsec = its.it_value.tv_nsec;
+        its.it_interval = its.it_value;
         if(timerfd_settime(pHandle->timerFd, 0, &its, NULL) == -1){ logError("timerfd_settime fail");
             close(pHandle->timerFd);
             return retFail;
@@ -127,51 +127,43 @@ static bool _memBlockUsed[APP_MEM_BLOCK_COUNT] = {0}; // 0 = free, 1 = used
 #endif
 int osalMalloc(void** pHandle, size_t size){
     if(!pHandle || !size){ logError("Invaild Params"); return retInvalidParam; }
-#if APP_OS == OS_LINUX
-    #if APP_MEM == SYSTEM_OSAL_DYNAMIC_MEM
-        *pHandle = malloc(size);
-        if(*pHandle == NULL){ logError("malloc fail");
-            return retFail;
-        }
-    #elif APP_MEM == SYSTEM_OSAL_STATIC_MEM
-        if(size > APP_MEM_BLOCK_SIZE){ logError("Requested size too large (%zu > %d)", size, APP_MEM_BLOCK_SIZE);
-            return retFail;
-        }
-        for(int i = 0; i < APP_MEM_BLOCK_COUNT; i++){
-            if(!_memBlockUsed[i]){
-                _memBlockUsed[i] = true;
-                *pHandle = &_memPool[i * APP_MEM_BLOCK_SIZE];
-                return retOk;
-            }
-        }
-        logError("Insufficient memory pool size");
+#if APP_MEM == SYSTEM_OSAL_DYNAMIC_MEM
+    *pHandle = malloc(size);
+    if(*pHandle == NULL){ logError("malloc fail");
         return retFail;
-    #endif
-#else
-    //
+    }
+#elif APP_MEM == SYSTEM_OSAL_STATIC_MEM
+    if(size > APP_MEM_BLOCK_SIZE){ logError("Requested size too large (%zu > %d)", size, APP_MEM_BLOCK_SIZE);
+        return retFail;
+    }
+    for(int i = 0; i < APP_MEM_BLOCK_COUNT; i++){
+        if(!_memBlockUsed[i]){
+            _memBlockUsed[i] = true;
+            *pHandle = &_memPool[i * APP_MEM_BLOCK_SIZE];
+            return retOk;
+        }
+    }
+    logError("Insufficient memory pool size");
+    return retFail;
 #endif
     return retOk;
 }
 int osalFree(void* pHandle){
     if(!pHandle){ logError("Invaild Params"); return retInvalidParam; }
-#if APP_OS == OS_LINUX
-    #if APP_MEM == SYSTEM_OSAL_DYNAMIC_MEM
-        free(pHandle);
-    #elif APP_MEM == SYSTEM_OSAL_STATIC_MEM
-        uint8_t* ptr = (uint8_t*)pHandle;
-        ptrdiff_t offset = ptr - _memPool;
-        if(ptr < _memPool || offset >= APP_MEM_POOL_SIZE) { logError("Out of memory pool range");
-            return retFail;
-        }
-        if(!(offset % APP_MEM_BLOCK_SIZE)){
-            int index = (int)(offset / APP_MEM_BLOCK_SIZE);
-            _memBlockUsed[index] = false;
-        }else{ logError("Invalid memory offset (misaligned or corrupted)");
-            return retFail;
-        }
-    #endif
-#else
-    //
+#if APP_MEM == SYSTEM_OSAL_DYNAMIC_MEM
+    free(pHandle);
+#elif APP_MEM == SYSTEM_OSAL_STATIC_MEM
+    uint8_t* ptr = (uint8_t*)pHandle;
+    ptrdiff_t offset = ptr - _memPool;
+    if(ptr < _memPool || offset >= APP_MEM_POOL_SIZE) { logError("Out of memory pool range");
+        return retFail;
+    }
+    if(!(offset % APP_MEM_BLOCK_SIZE)){
+        int index = (int)(offset / APP_MEM_BLOCK_SIZE);
+        _memBlockUsed[index] = false;
+    }else{ logError("Invalid memory offset (misaligned or corrupted)");
+        return retFail;
+    }
 #endif
     return retOk;
 }

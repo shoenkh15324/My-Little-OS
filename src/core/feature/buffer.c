@@ -14,6 +14,7 @@ extern "C" {
     #include <stdatomic.h>
 #endif
 #include "core/feature/log.h"
+#include "core/feature/osal.h"
 
 static inline bool _bufferLock(ringBuffer* pHandle){
 #if APP_BUFFER_LOCK == SYSTEM_BUFFER_LOCK_ENABLE
@@ -27,7 +28,7 @@ static inline bool _bufferLock(ringBuffer* pHandle){
 }
 static inline void _bufferUnlock(ringBuffer* pHandle){
 #if APP_BUFFER_LOCK == SYSTEM_BUFFER_LOCK_ENABLE
-    if(!pHandle){ logError("Invaild Params"); return retInvalidParam; }
+    if(!pHandle){ logError("Invaild Params"); return; }
     pHandle->lock = false;
 #endif
 }
@@ -36,7 +37,7 @@ int bufferOpen(ringBuffer* pHandle, size_t size){
     if(bufferReset(pHandle)){ logError("bufferReset fail");
         return retFail;
     }
-    if(osalMalloc(&pHandle->pBuf, size)){ logError("malloc fail");
+    if(osalMalloc((void**)&pHandle->pBuf, size)){ logError("malloc fail");
         return retFail;
     }
     pHandle->size = size;

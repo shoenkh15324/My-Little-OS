@@ -18,8 +18,8 @@
 
 #if defined(APP_SAMPLE)
     #include "app/sample/appConfig.h"
-#elif defined(APP_SAMPLE2)
-    #include "app/sample2/appConfig.h"
+#elif defined(APP_ENGINE_2D)
+    #include "app/engine2D/appConfig.h"
 #elif defined(APP_DEFAULT)
     #include APP_DEFAULT
 #else

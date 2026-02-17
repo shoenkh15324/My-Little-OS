@@ -49,14 +49,14 @@ int activeOpen(activeObject* pHandle){
     if(bufferOpen(&pHandle->eventQueue, pHandle->eventQueueSize)){ logError("bufferOpen fail");
         result = retFail; goto appOpenExit;
     }
-    if(osalMalloc(&pHandle->pPayloadBuffer, pHandle->payloadBufferSize)){ logError("osalMalloc fail");
+    if(osalMalloc((void**)&pHandle->pPayloadBuffer, pHandle->payloadBufferSize)){ logError("osalMalloc fail");
         result = retFail; goto appOpenExit;
     }
     if(asyncSubscribe(pHandle, pHandle->appEventIdxStart, pHandle->appEventIdxEnd)){ logError("asyncSubscribe fail");
         result = retFail; goto appOpenExit;
     }
     if(pHandle->isMainThread){
-        if(osalTimerOpen(&pHandle->appTimer, pHandle->appTimerHandler, APP_TIMER_INTERVAL)){ logError("osalTimerOpen fail");
+        if(osalTimerOpen(&pHandle->appTimer, pHandle->appTimerHandler, pHandle, APP_TIMER_INTERVAL)){ logError("osalTimerOpen fail");
             result = retFail; goto appOpenExit;
         }
 #if APP_OS == OS_LINUX
@@ -73,7 +73,7 @@ int activeOpen(activeObject* pHandle){
     //
 appOpenExit:
     osalMutexUnlock(&pHandle->objMutex);
-    return retOk;
+    return result;
 }
 int activeClose(activeObject* pHandle){
     if(!pHandle){ logError("Invaild Params"); return retInvalidParam; }
@@ -95,9 +95,11 @@ int activeClose(activeObject* pHandle){
         if(osalTimerClose(&pHandle->appTimer)){ logError("osalTimerClose fail");
             return retFail;
         }
+#if APP_OS == OS_LINUX
         if(osalEpollClose(&pHandle->objEpoll)){ logError("osalEpollClose fail");
             return retFail;
         }
+#endif
         pHandle->objState = objStateClosed;
         osalMutexClose(&pHandle->objMutex); 
     }

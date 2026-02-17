@@ -10,6 +10,7 @@ extern "C" {
 #include "core/systemDefs.h"
 
 #if APP_LOG_ENABLE
+    void _logInternal(int level, const char* func, int line, const char* fmt, ...);
     #if APP_LOG_LEVEL >= SYSTEM_LOG_LEVEL_ERROR
         #define logError(fmt, ...) _logInternal(SYSTEM_LOG_LEVEL_ERROR, __func__, __LINE__, fmt, ##__VA_ARGS__)
     #else

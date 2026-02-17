@@ -1,22 +1,38 @@
 cmake_minimum_required(VERSION 3.10)
-project(MyLittleOS)
+project(myLittleOS LANGUAGES C CXX)
 
-# Default app target if not specified
+# 1. 프로젝트 설정 (App Target)
 if(NOT DEFINED APP_TARGET)
-    set(APP_TARGET "sample")
+    set(APP_TARGET "engine_2d")
 endif()
 
-message(STATUS "Building for app: ${APP_TARGET}")
+set(TARGET_NAME myLittleOS)
+set(APP_DEFINE "APP_${APP_TARGET}")
+string(TOUPPER "${APP_DEFINE}" APP_DEFINE_UPPER)
 
-if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    add_compile_options(-fdiagnostics-color=always)
+message(STATUS "--------------------------------------------")
+message(STATUS "Target Name: ${TARGET_NAME}")
+message(STATUS "App Target : ${APP_TARGET} (${APP_DEFINE_UPPER})")
+message(STATUS "--------------------------------------------")
+
+# 2. 컴파일러 옵션
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    add_compile_options(-fdiagnostics-color=always -Wall -Wextra)
 endif()
 
-set(TARGET_NAME mario_daemon)
+# 3. 종속성 라이브러리 찾기
 find_package(Threads REQUIRED)
-find_library(RT_LIBRARY rt)
 
-add_executable(${TARGET_NAME} 
+set(EXTERNAL_LIBS Threads::Threads)
+if(UNIX)
+    find_library(RT_LIBRARY rt)
+    if(RT_LIBRARY)
+        list(APPEND EXTERNAL_LIBS ${RT_LIBRARY})
+    endif()
+endif()
+
+# 4. 소스 파일 정의 (가독성을 위해 변수에 할당)
+set(SRCS
     main.c
     # Core
     src/core/system.c
@@ -31,27 +47,33 @@ add_executable(${TARGET_NAME}
     src/service/serviceCommon.c
     # App
     src/app/appCommon.c
-    src/app/sample/app.c
-    src/app/sample/appBridge.c
+    src/app/engine2D/app.c
+    src/app/engine2D/appBridge.c
 )
-target_include_directories(${TARGET_NAME} PRIVATE
-        ${CMAKE_SOURCE_DIR}/inc
-)
-# Generate the compile definition string: APP_SAMPLE, APP_SAMPLE2, etc.
-set(APP_DEFINE "APP_${APP_TARGET}")
-string(TOUPPER "${APP_DEFINE}" APP_DEFINE_UPPER)
 
-message(STATUS "Building for app: ${APP_TARGET} (define: ${APP_DEFINE_UPPER})")
+# 5. 타겟 생성 및 설정
+add_executable(${TARGET_NAME} ${SRCS})
+
+target_include_directories(${TARGET_NAME} PRIVATE 
+    ${CMAKE_SOURCE_DIR}/inc
+)
 
 target_compile_definitions(${TARGET_NAME} PUBLIC
     MY_LITTLE_OS=1
     ${APP_DEFINE_UPPER}=1
 )
-target_link_libraries(${TARGET_NAME} PRIVATE 
-    Threads::Threads 
-    ${RT_LIBRARY}
-)
-# Test Folder
+
+target_link_libraries(${TARGET_NAME} PRIVATE ${EXTERNAL_LIBS})
+
+# 6. 테스트 설정
 enable_testing()
-add_subdirectory(tests/unit/core)
-add_subdirectory(tests/integration)
+
+# 테스트 폴더가 있을 때만 추가 (에러 방지용)
+macro(add_test_directory dir)
+    if(EXISTS "${CMAKE_SOURCE_DIR}/${dir}/CMakeLists.txt")
+        add_subdirectory(${dir})
+    endif()
+endmacro()
+
+add_test_directory("tests/unit/core")
+add_test_directory("tests/integration")

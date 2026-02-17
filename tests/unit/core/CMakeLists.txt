@@ -14,15 +14,7 @@ foreach(testFile ${TEST_SOURCES})
     target_include_directories(${testName} PRIVATE ${PROJECT_SOURCE_DIR}/inc)
     # compile definitions
     target_compile_definitions(${testName} PRIVATE
-        APP_SAMPLE=1
-        APP_OS=OS_LINUX
-        APP_LOG_ENABLE=0
-        APP_THREAD_MAX_COUNT=2
-        APP_BUFFER_PEAK=1
-        APP_BUFFER_PUSH_OVERWRITE=1
-        APP_BUFFER_STATISTICS=1
-        APP_BUFFER_LOCK=SYSTEM_BUFFER_LOCK_ENABLE
-        APP_MEM=SYSTEM_OSAL_DYNAMIC_MEM
+
     )
     # 필요한 src 코드 링크
     if(${testName} STREQUAL "testBuffer")

@@ -4,9 +4,12 @@
  *  Created: 2026-02-14
  ******************************************************************************/
 // C Standard Library
+#include <stdio.h>
+#include <stdlib.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
 
 /* [SYSTEM INFO] */
 #define SYSTEM_NAME "My Little OS"
@@ -29,11 +32,13 @@
 #define OS_FREERTOS 2
 #define OS_ZEPHYR 3
 #define OS_LINUX 4
+#define OS_WINDOW 5
 
 /* [SDK] */
 #define SDK_NONE 0
 #define SDK_STM32_HAL 1
 #define SDK_POSIX 2
+#define SDK_WINDOW 3
 
 /* [LOG] */
 #define SYSTEM_LOG_ENABLE 1
@@ -81,9 +86,7 @@ typedef enum{
     retFail = -1,
     retTimeout = -2,
     retInvalidParam = -3,
-    retEmptyBuffer = -4,
 } returnCode;
-
 typedef enum{
     objStateClosed = 0,
     objStateClosing,

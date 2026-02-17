@@ -89,7 +89,7 @@ size_t asyncPop(void* pActObj, asyncPacket* pOutPacket, uint8_t* payloadBuf){
     if(!pActObj || !pOutPacket || !payloadBuf){ logError("Invaild Params"); return retInvalidParam; }
     activeObject* pTarget = (activeObject*)pActObj;
     osalMutexLock(&pTarget->objMutex, -1);
-    size_t popResult = bufferPop(&pTarget->eventQueue, pOutPacket, sizeof(asyncPacket));
+    size_t popResult = bufferPop(&pTarget->eventQueue, (uint8_t*)pOutPacket, sizeof(asyncPacket));
     if(popResult < 0){ logError("bufferPop fail");
         osalMutexUnlock(&pTarget->objMutex);
         return retFail;

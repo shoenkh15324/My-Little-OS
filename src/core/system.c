@@ -5,6 +5,8 @@
 #include "appCfgSelector.h"
 #include "core/system.h"
 #include "app/appCommon.h"
+#include "driver/driverCommon.h"
+#include "service/serviceCommon.h"
 
 int systemClose(void){
     return 0;

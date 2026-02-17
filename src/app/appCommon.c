@@ -3,6 +3,7 @@
  *  Created: 2026-02-10
  ******************************************************************************/
 #include "service/serviceCommon.h"
+#include "app/appCommon.h"
 
 int appCommonClose(void){
     int result = retOk;

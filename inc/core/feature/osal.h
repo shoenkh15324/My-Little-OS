@@ -11,23 +11,23 @@ extern "C" {
 #if APP_OS == OS_LINUX
     #include <pthread.h>
     #include <semaphore.h>
-    #include <time.h>
     #include <sys/epoll.h>
+    #include <time.h>
+#elif APP_OS == OS_WINDOW
+
 #endif
 
 // Time / Tick
 int osalGetTimeMs(void);
-int osalGetTick(void);
-void osalSleepMs(int);
-#if APP_OS == OS_LINUX
 int64_t osalGetTimeUs(void);
 int64_t osalGetTimeNs(void);
-void osalSleepUs(int);
+int osalGetTick(void);
 void osalGetDate(char*, size_t);
-#endif
+void osalSleepMs(int);
+void osalSleepUs(int);
 
 // Timer
-typedef void (*osalTimerCb)(void);
+typedef void (*osalTimerCb)(void*);
 typedef struct{
 #if APP_OS == OS_LINUX
     int timerFd;
@@ -35,7 +35,7 @@ typedef struct{
     void* timerArg;
 #endif
 } osalTimer;
-int osalTimerOpen(osalTimer*, osalTimerCb, int);
+int osalTimerOpen(osalTimer*, osalTimerCb, void*, int);
 int osalTimerClose(osalTimer*);
 
 // Memory
@@ -92,11 +92,13 @@ int osalSemaphoreTake(osalSemaphore*, int);
 int osalSemaphoreGive(osalSemaphore*);
 
 // Epoll (only Linux)
+#if APP_OS == OS_LINUX
 enum{
     osalEpollEventFlagIn = EPOLLIN,
     osalEpollEventFlagOut = EPOLLOUT,
     osalEpollEventFlagError = EPOLLERR,
 };
+#endif
 typedef struct{
     int epollFd;
     int eventFd;

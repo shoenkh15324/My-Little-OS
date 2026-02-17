@@ -16,9 +16,8 @@
         },
         "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
         "C_Cpp.default.defines": [
-            "DIRAC_OS=1",
-            "APP_SAMPLE=1",
-            "_GNU_SOURCE=1",
+            "MY_LITTLE_OS=1",
+            "APP_ENGINE_2D=1",
         ],
         "cmake.buildDirectory": "${workspaceFolder}/build",
     },
