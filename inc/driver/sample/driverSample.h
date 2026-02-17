@@ -12,7 +12,7 @@ enum{
     driverSampleStateXXX = objStateBegin,
 };
 
-typedef struct{
+typedef struct driverSample{
     objectState objState;
     osalMutex objMutex;
 } driverSample;

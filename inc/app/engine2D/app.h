@@ -23,10 +23,10 @@ typedef enum{
     appTestStateXXX = objStateBegin,
 } appRenderState;
 
-typedef struct{
+typedef struct appMain{
     activeObject actor;
 } appMain;
-typedef struct{
+typedef struct appRender{
     activeObject actor;
 } appRender;
 

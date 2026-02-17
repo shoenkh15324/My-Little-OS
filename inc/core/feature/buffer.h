@@ -5,7 +5,7 @@
  ******************************************************************************/
 #include "core/systemDefs.h"
 
-typedef struct{
+typedef struct ringBuffer{
     uint8_t* pBuf;
     size_t size, head, tail, usage;
     bool lock;

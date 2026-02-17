@@ -13,18 +13,20 @@ typedef enum{
     asyncTypeExpress,
 } asyncType;
 
-typedef struct{
+typedef struct asyncPacket{
     asyncType type;
     uint16_t eventId;
     uintptr_t arg1, arg2, arg3, arg4;
     size_t payloadSize;
 } __attribute__((packed)) asyncPacket;
 
-typedef struct{
-    void* pActObj;
+typedef struct activeObject activeObject;
+
+typedef struct asyncSubscriber{
+    struct activeObject* pActObj;
     uint16_t startId, endId;
 } asyncSubscriber;
 
-int asyncSubscribe(void*, uint16_t, uint16_t);
+int asyncSubscribe(struct activeObject*, uint16_t, uint16_t);
 int asyncPush(asyncType, uint16_t, uintptr_t, uintptr_t, uintptr_t, uintptr_t);
-size_t asyncPop(void*, asyncPacket*, uint8_t*);
+size_t asyncPop(struct activeObject*, asyncPacket*, uint8_t*);

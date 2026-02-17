@@ -9,7 +9,7 @@
 #include "core/feature/buffer.h"
 #include "core/feature/osal.h"
 
-typedef struct {
+typedef struct activeObject{
     objectState objState;
     // Synchronization
     osalMutex objMutex;

@@ -24,7 +24,7 @@ void osalSleepUs(uint32_t);
 
 // Timer
 typedef void (*osalTimerCb)(void*);
-typedef struct{
+typedef struct osalTimer{
 #if APP_OS == OS_LINUX
     int timerFd;
 #elif APP_OS == OS_WIN32
@@ -51,12 +51,12 @@ typedef enum{
     osalThreadPriorityHigh,
     osalThreadPriorityRealtime,
 } osalThreadPriority;
-typedef struct{
+typedef struct osalThreadAttribute{
     const char* name;
     size_t statckSize;
     int priority;
 } osalThreadAttribute;
-typedef struct{
+typedef struct osalThread{
 #if APP_OS == OS_LINUX
     pthread_t thread;
 #elif APP_OS == OS_WIN32
@@ -71,7 +71,7 @@ int osalThreadJoin(osalThread*);
 int osalThreadClose(osalThread*);
 
 // Mutex
-typedef struct{
+typedef struct osalMutex{
 #if APP_OS == OS_LINUX
     pthread_mutex_t mutex;
 #elif APP_OS == OS_WIN32
@@ -84,7 +84,7 @@ int osalMutexLock(osalMutex*, int);
 int osalMutexUnlock(osalMutex*);
 
 // Semaphore
-typedef struct{
+typedef struct osalSemaphore{
 #if APP_OS == OS_LINUX
     sem_t sema;
 #elif APP_OS == OS_WIN32
@@ -104,7 +104,7 @@ enum{
     osalEpollEventFlagError = EPOLLERR,
 };
 #endif
-typedef struct{
+typedef struct osalEpoll{
     int epollFd;
     int eventFd;
 } osalEpoll;

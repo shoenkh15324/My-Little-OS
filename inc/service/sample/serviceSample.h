@@ -12,7 +12,7 @@ enum{
     serviceSampleStateXXX = objStateBegin,
 };
 
-typedef struct{
+typedef struct serviceSample{
     objectState objState;
     osalMutex objMutex;
 } serviceSample;
