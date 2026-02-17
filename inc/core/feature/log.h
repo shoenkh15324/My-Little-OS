@@ -28,7 +28,6 @@
         #define logDebug(fmt, ...) ((void)0)
     #endif
 #else
-    #define log(...) ((void)0)
     #define logError(...) ((void)0)
     #define logWarn(...)  ((void)0)
     #define logInfo(...)  ((void)0)

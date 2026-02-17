@@ -41,6 +41,15 @@ set(SRCS
     src/core/feature/buffer.c
     src/core/feature/async.c
     src/core/feature/active.c
+    src/core/physics/vector/vector2D.c
+    src/core/physics/body/body2D.c
+    src/core/physics/shape/shape2D.c
+    src/core/physics/shape/circle2D.c
+    src/core/physics/shape/aabb2D.c
+    src/core/physics/contact/contact2D.c
+    src/core/physics/collision/collision2D.c
+    src/core/physics/solver/solver2D.c
+    src/core/physics/world/world2D.c
     # Driver
     src/driver/driverCommon.c
     # Service
