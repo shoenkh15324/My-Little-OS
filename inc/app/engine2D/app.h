@@ -12,23 +12,23 @@ typedef enum{
         appMainEventTimer,
     appMainEventEnd = 99,
     // appTest
-    appTestEventStart = 100,
-        appTestEventTimer,
-    appTestEventEnd = 199,
+    appRenderEventStart = 100,
+        appRenderEventTimer,
+    appRenderEventEnd = 199,
 } appEventList;
 typedef enum{
     appMainStateXXX = objStateBegin,
 } appMainState;
 typedef enum{
     appTestStateXXX = objStateBegin,
-} appTestState;
+} appRenderState;
 
 typedef struct{
     activeObject actor;
 } appMain;
 typedef struct{
     activeObject actor;
-} appTest;
+} appRender;
 
 int appClose(void);
 int appOpen(void);

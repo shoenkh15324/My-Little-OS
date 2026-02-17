@@ -15,29 +15,35 @@ extern "C" {
     #include <errno.h>
     #include <sys/eventfd.h>
     #include <sys/timerfd.h>
+#elif APP_OS == OS_WIN32
 #endif
 #include "core/feature/log.h"
 
 // Time / Tick
-static void _osalGetAbsTime(struct timespec* pTimeSpec, int timeoutMs){
-#if APP_OS == OS_LINUX
-    clock_gettime(CLOCK_MONOTONIC, pTimeSpec);
-    pTimeSpec->tv_sec += (timeoutMs / 1000);
-    pTimeSpec->tv_nsec += (long)(timeoutMs % 1000) * 1000000L;
-
-    if (pTimeSpec->tv_nsec >= 1000000000L) {
-        pTimeSpec->tv_sec += 1;
-        pTimeSpec->tv_nsec -= 1000000000L;
+#if APP_OS == OS_WIN32
+static int64_t _osalQueryPerformanceNs(void){
+    static LARGE_INTEGER freq;
+    static int initialized = 0;
+    if(!initialized){
+        QueryPerformanceFrequency(&freq);
+        initialized = 1;
     }
-#endif
+    LARGE_INTEGER counter;
+    QueryPerformanceCounter(&counter);
+    return (int64_t)((counter.QuadPart * 1000000000LL) / freq.QuadPart);
 }
+#endif
 void osalGetDate(char* pBuf, size_t bufSize){
     if(!pBuf || !bufSize){ logError("Invaild Params"); return; }
 #if APP_OS == OS_LINUX
     struct timeval  time;
     gettimeofday(&time, NULL);
     struct tm* tmInfo = localtime(&time.tv_sec);
-    snprintf(pBuf, bufSize, "%02d:%02d:%02d.%03ld", tmInfo->tm_hour, tmInfo->tm_min, tmInfo->tm_sec, time.tv_usec  / 1000);
+    snprintf(pBuf, bufSize, "%02d:%02d:%02d.%03ld", tmInfo->tm_hour, tmInfo->tm_min, tmInfo->tm_sec, time.tv_usec / 1000);
+#elif APP_OS == OS_WIN32
+    SYSTEMTIME time;
+    GetLocalTime(&time);
+    snprintf(pBuf, bufSize, "%02d:%02d:%02d.%03d", time.wHour, time.wMinute, time.wSecond, time.wMilliseconds);
 #endif
 }
 int osalGetTimeMs(void){
@@ -45,6 +51,8 @@ int osalGetTimeMs(void){
     struct timespec time;
     clock_gettime(CLOCK_MONOTONIC, &time);
     return (int)((time.tv_sec * 1000) + (time.tv_nsec / 1000000));
+#elif APP_OS == OS_WIN32
+    return (int)(_osalQueryPerformanceNs() / 1000000LL);
 #else 
     return 0;
 #endif
@@ -54,6 +62,8 @@ int64_t osalGetTimeUs(void){
     struct timespec time;
     clock_gettime(CLOCK_MONOTONIC, &time);
     return (int64_t)time.tv_sec * 1000000LL + (int64_t)(time.tv_nsec / 1000);
+#elif APP_OS == OS_WIN32
+    return _osalQueryPerformanceNs() / 1000LL;
 #else
     return 0;
 #endif
@@ -63,22 +73,37 @@ int64_t osalGetTimeNs(void){
     struct timespec time;
     clock_gettime(CLOCK_MONOTONIC, &time);
     return time.tv_sec * 1000000000L + time.tv_nsec;
+#elif APP_OS == OS_WIN32
+    return _osalQueryPerformanceNs();
 #else
     return 0;
 #endif
 }
 int osalGetTick(void){
-    //
+#if APP_OS == OS_WIN32
+    return GetTickCount();
+#else
     return 0;
-}
-void osalSleepMs(int ms){
-#if APP_OS == OS_LINUX
-    usleep(ms * 1000);
 #endif
 }
-void osalSleepUs(int us){
+void osalSleepMs(uint32_t ms){
+#if APP_OS == OS_LINUX
+    usleep(ms * 1000);
+#elif APP_OS == OS_WIN32
+    Sleep(ms);
+#endif
+}
+void osalSleepUs(uint32_t us){
 #if APP_OS == OS_LINUX // Note: In Linux user-space, microsecond delays are not precise due to scheduler and timer resolution.
     usleep(us);
+#elif APP_OS == OS_WIN32
+    if(us >= 1000){
+        Sleep(us / 1000);
+    }else{ // 1ms 이하 정밀 sleep은 busy wait
+        int64_t start = _osalQueryPerformanceNs();
+        int64_t waitNs = (int64_t)us * 1000LL;
+        while ((_osalQueryPerformanceNs() - start) < waitNs) { YieldProcessor(); }
+    }
 #endif
 }
 
@@ -101,6 +126,19 @@ int osalTimerOpen(osalTimer* pHandle, osalTimerCb expiredCallback, void* arg, in
             close(pHandle->timerFd);
             return retFail;
         }
+    #elif APP_OS == OS_WIN32
+        pHandle->timerHandle = CreateWaitableTimer(NULL, false, NULL);
+        if(!pHandle->timerHandle){ logError("CreateWaitableTimer fail");
+            return retFail;
+        }
+        pHandle->timerCb = expiredCallback;
+        pHandle->timerArg = arg;
+        LARGE_INTEGER dueTime;
+        dueTime.QuadPart = -(LONGLONG)periodMs * 10000;
+        if(!SetWaitableTimer(pHandle->timerHandle, &dueTime, periodMs, NULL, NULL, false)){ logError("SetWaitableTimer fail");
+            CloseHandle(pHandle->timerHandle);
+            return retFail;
+        }
     #endif
 #endif
     return retOk;
@@ -114,6 +152,12 @@ int osalTimerClose(osalTimer* pHandle){
             timerfd_settime(pHandle->timerFd, 0, &its, NULL);
             close(pHandle->timerFd);
             pHandle->timerFd = -1;
+        }
+    #elif APP_OS == OS_WIN32
+        if(pHandle->timerHandle){
+            CancelWaitableTimer(pHandle->timerHandle);
+            CloseHandle(pHandle->timerHandle);
+            pHandle->timerHandle = NULL;
         }
     #endif
 #endif
@@ -169,7 +213,21 @@ int osalFree(void* pHandle){
 }
 
 // Thread
-int osalThreadOpen(osalThread* pHandle, const osalThreadAttribute* attr, oslThreadEntry threadEntryCb, void* userArg){
+#if APP_OS == OS_WIN32
+typedef struct{
+    oslThreadCallback userCallback;
+    void* userArg;
+} osalThreadWin32Arg;
+static DWORD WINAPI _win32ThreadWrapper(LPVOID arg){
+    osalThreadWin32Arg* win32Arg = (osalThreadWin32Arg*)arg;
+    if(win32Arg && win32Arg->userCallback){
+        win32Arg->userCallback(win32Arg->userArg);
+    }
+    osalFree(win32Arg);
+    return 0;
+}
+#endif
+int osalThreadOpen(osalThread* pHandle, const osalThreadAttribute* attr, oslThreadCallback threadEntryCb, void* userArg){
 #if APP_THREAD == SYSTEM_OSAL_THREAD_ENABLE
     if(!pHandle || !attr || !threadEntryCb){ logError("Invaild Params"); return retInvalidParam; }
     #if APP_OS == OS_LINUX
@@ -189,6 +247,19 @@ int osalThreadOpen(osalThread* pHandle, const osalThreadAttribute* attr, oslThre
         }
         pHandle->isCreated = 1;
         pthread_attr_destroy(&threadAttrLinux);
+    #elif APP_OS == OS_WIN32
+        osalThreadWin32Arg* win32Arg = NULL;
+        if(osalMalloc((void**)&win32Arg, sizeof(osalThreadWin32Arg))){ logError("osalMalloc fail");
+            return retFail;
+        }
+        win32Arg->userCallback = threadEntryCb;
+        win32Arg->userArg = userArg;
+        pHandle->threadHandle = CreateThread(NULL, attr->statckSize, _win32ThreadWrapper, win32Arg, 0, &pHandle->threadId);
+        if(!pHandle->threadHandle){ logError("CreateThread fail");
+            osalFree(win32Arg);
+            return retFail;
+        }
+        pHandle->isCreated = 1;
     #endif
 #endif
     return retOk;
@@ -209,6 +280,20 @@ int osalThreadSetPriority(osalThread* pHandle, osalThreadPriority priority){
         if(pthread_setschedparam(pHandle->thread, policy, &param)){ logError("pthread_setschedparam fail");
             return retFail;
         }
+    #elif APP_OS == OS_WIN32
+        int winPriority = THREAD_PRIORITY_NORMAL;
+        switch(priority){
+            case osalThreadPriorityIdle:        winPriority = THREAD_PRIORITY_IDLE; break;
+            case osalThreadPriorityLow:         winPriority = THREAD_PRIORITY_LOWEST; break;
+            case osalThreadPriorityBelowNormal: winPriority = THREAD_PRIORITY_BELOW_NORMAL; break;
+            case osalThreadPriorityNormal:      winPriority = THREAD_PRIORITY_NORMAL; break;
+            case osalThreadPriorityAboveNormal: winPriority = THREAD_PRIORITY_ABOVE_NORMAL; break;
+            case osalThreadPriorityHigh:        winPriority = THREAD_PRIORITY_HIGHEST; break;
+            case osalThreadPriorityRealtime:    winPriority = THREAD_PRIORITY_TIME_CRITICAL; break;
+        }
+        if(!SetThreadPriority(pHandle->threadHandle, winPriority)){ logError("SetThreadPriority fail");
+            return retFail;
+        }
     #endif
 #endif
     return retOk;
@@ -223,6 +308,16 @@ int osalThreadJoin(osalThread* pHandle){
             }
         }
         pHandle->isCreated = 0;
+    #elif APP_OS == OS_WIN32
+        if(pHandle->isCreated){
+            if(WaitForSingleObject(pHandle->threadHandle, INFINITE) != WAIT_OBJECT_0){ logError("WaitForSingleObject fail");
+                return retFail;
+            }
+        }
+        CloseHandle(pHandle->threadHandle);
+        pHandle->threadHandle = NULL;
+        pHandle->threadId = 0;
+        pHandle->isCreated = 0;
     #endif
 #endif
     return retOk;
@@ -234,6 +329,13 @@ int osalThreadClose(osalThread* pHandle){
         if(pHandle->isCreated) pthread_detach(pHandle->thread);
         pHandle->thread = 0;
         pHandle->isCreated = 0;
+    #elif APP_OS == OS_WIN32
+        if(pHandle->isCreated && pHandle->threadHandle){
+            CloseHandle(pHandle->threadHandle);
+            pHandle->threadHandle = NULL;
+            pHandle->threadId = 0;
+            pHandle->isCreated = 0;
+        }
     #endif
 #endif
     return retOk;
@@ -262,6 +364,11 @@ int osalMutexOpen(osalMutex* pHandle){
         if(pthread_mutexattr_destroy(&attr)){ logError("pthread_mutexattr_destroy fail");
             return retFail;
         }
+    #elif APP_OS == OS_WIN32
+        pHandle->mutexHandle = CreateMutex(NULL, FALSE, NULL);
+        if(pHandle->mutexHandle == NULL){ logError("CreateMutex fail"); 
+            return retFail;
+        }
     #endif
 #endif
     return retOk;
@@ -273,6 +380,9 @@ int osalMutexClose(osalMutex* pHandle){
         if(pthread_mutex_destroy(&(pHandle->mutex))){ logError("pthread_mutex_destroy fail");
             return retFail;
         }
+    #elif APP_OS == OS_WIN32
+        if(pHandle->mutexHandle){ CloseHandle(pHandle->mutexHandle); }
+        pHandle->mutexHandle = NULL;
     #endif
 #endif
     return retOk;
@@ -288,7 +398,13 @@ int osalMutexLock(osalMutex* pHandle, int timeoutMs){
             res = pthread_mutex_trylock(&pHandle->mutex);
         }else{
             struct timespec absTime;
-            _osalGetAbsTime(&absTime, timeoutMs);
+            clock_gettime(CLOCK_MONOTONIC, &absTime);
+            absTime.tv_sec  += timeoutMs / 1000;
+            absTime.tv_nsec += (timeoutMs % 1000) * 1000000L;
+            if(absTime.tv_nsec >= 1000000000L){
+                absTime.tv_sec += 1;
+                absTime.tv_nsec -= 1000000000L;
+            }
             res = pthread_mutex_timedlock(&pHandle->mutex, &absTime);
         }
         if(res != 0){
@@ -296,6 +412,13 @@ int osalMutexLock(osalMutex* pHandle, int timeoutMs){
                 return retTimeout;
             }
             logError("Mutex Lock: Error (%d)", res);
+            return retFail;
+        }
+    #elif APP_OS == OS_WIN32
+        DWORD waitTime = (timeoutMs < 0) ? INFINITE : (DWORD)timeoutMs;
+        DWORD res = WaitForSingleObject(pHandle->mutexHandle, waitTime);
+        if(res == WAIT_TIMEOUT) return retTimeout;
+        if(res != WAIT_OBJECT_0){ logError("WaitForSingleObject fail"); 
             return retFail;
         }
     #endif
@@ -308,6 +431,10 @@ int osalMutexUnlock(osalMutex* pHandle){
     #if APP_OS == OS_LINUX
         if(pthread_mutex_unlock(&(pHandle->mutex))){ logError("pthread_mutex_unlock fail");
             return retFail;
+        }
+    #elif APP_OS == OS_WIN32
+        if(!ReleaseMutex(pHandle->mutexHandle)){ logError("ReleaseMutex fail"); 
+            return retFail; 
         }
     #endif
 #endif
@@ -329,6 +456,13 @@ int osalSemaphoreOpen(osalSemaphore* pHandle, int count){
             logError("sem_init fail");
             return retFail;
         }
+    #elif APP_OS == OS_WIN32
+        // max count: binary -> 1, counting -> APP_SEMAPHORE_MAX_COUNT
+        int maxCount = (APP_SEMAPHORE_TYPE == SYSTEM_OSAL_SEMAPHORE_TYPE_BINARY) ? 1 : APP_SEMAPHORE_MAX_COUNT;
+        pHandle->semaHandle = CreateSemaphore(NULL, initCount, maxCount, NULL);
+        if(pHandle->semaHandle == NULL){ logError("CreateSemaphore fail"); 
+            return retFail;
+        }
     #endif
 #endif
     return retOk;
@@ -340,6 +474,9 @@ int osalSemaphoreClose(osalSemaphore* pHandle){
         if(sem_destroy(&(pHandle->sema)) != 0){ logError("sem_destroy fail");
             return retFail;
         }
+    #elif APP_OS == OS_WIN32
+        if(pHandle->semaHandle){ CloseHandle(pHandle->semaHandle); }
+        pHandle->semaHandle = NULL;
     #endif
 #endif
     return retOk;
@@ -355,7 +492,13 @@ int osalSemaphoreTake(osalSemaphore* pHandle, int timeoutMs){
             res = sem_trywait(&pHandle->sema);
         }else{
             struct timespec absTime;
-            _osalGetAbsTime(&absTime, timeoutMs);
+            clock_gettime(CLOCK_MONOTONIC, &absTime);
+            absTime.tv_sec  += timeoutMs / 1000;
+            absTime.tv_nsec += (timeoutMs % 1000) * 1000000L;
+            if(absTime.tv_nsec >= 1000000000L){
+                absTime.tv_sec += 1;
+                absTime.tv_nsec -= 1000000000L;
+            }
             res = sem_timedwait(&pHandle->sema, &absTime);
         }
         if(res != 0){
@@ -364,6 +507,13 @@ int osalSemaphoreTake(osalSemaphore* pHandle, int timeoutMs){
             }
             logError("Semaphore Take: Fail (errno=%d)", errno);
             return retFail;
+        }
+    #elif APP_OS == OS_WIN32
+        DWORD waitTime = (timeoutMs < 0) ? INFINITE : (DWORD)timeoutMs;
+        DWORD res = WaitForSingleObject(pHandle->semaHandle, waitTime);
+        if(res == WAIT_TIMEOUT) return retTimeout;
+        if(res != WAIT_OBJECT_0){ logError("WaitForSingleObject fail"); 
+            return retFail; 
         }
     #endif
 #endif
@@ -374,6 +524,10 @@ int osalSemaphoreGive(osalSemaphore* pHandle){
     if(!pHandle){ logError("Invaild Params"); return retInvalidParam; }
     #if APP_OS == OS_LINUX
         if(sem_post(&(pHandle->sema)) != 0){ logError("sem_post fail");
+            return retFail;
+        }
+    #elif APP_OS == OS_WIN32
+        if(!ReleaseSemaphore(pHandle->semaHandle, 1, NULL)){ logError("ReleaseSemaphore fail");
             return retFail;
         }
     #endif
@@ -454,7 +608,7 @@ int osalEpollNotify(osalEpoll* pHandle){
 
 // Etc
 int osalIsInIsr(void){
-#if APP_OS == OS_LINUX
+#if (APP_OS == OS_LINUX) || (APP_OS == OS_WIN32)
     return 0; // User-space Linux has no direct ISR access.
 #endif
 }

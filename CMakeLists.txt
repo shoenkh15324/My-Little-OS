@@ -3,7 +3,7 @@ project(myLittleOS LANGUAGES C CXX)
 
 # 1. 프로젝트 설정 (App Target)
 if(NOT DEFINED APP_TARGET)
-    set(APP_TARGET "sample")
+    set(APP_TARGET "engine_2d")
 endif()
 
 set(TARGET_NAME myLittleOS)

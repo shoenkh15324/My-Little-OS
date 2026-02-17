@@ -32,7 +32,7 @@
 #define OS_FREERTOS 2
 #define OS_ZEPHYR 3
 #define OS_LINUX 4
-#define OS_WINDOW 5
+#define OS_WIN32 5
 
 /* [SDK] */
 #define SDK_NONE 0

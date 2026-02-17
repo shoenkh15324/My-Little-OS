@@ -81,6 +81,8 @@ Exit:
         osalSemaphoreGive(&pTarget->objSema);
 #if APP_OS == OS_LINUX
         osalEpollNotify(&pTarget->objEpoll);
+#elif APP_OS == OS_WIN32
+        // Windows에서는 Semaphore만 Give하면 _actorThreadHandler가 깨어남. 별도 notify 필요 없음
 #endif
     } 
     return result;

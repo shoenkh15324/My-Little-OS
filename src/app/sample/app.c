@@ -36,10 +36,10 @@ static appTest _appTest = {
 static void _appMainTimerHandler(void* arg){ //logDebug("_appMainTimerHandler");
     activeObject* actor = (activeObject*)arg;
     if(actor->isMainThread){
-        if(asyncPush(asyncTypeAsync, appMainEventTimer, NULL, NULL, NULL, NULL)){ logError("asyncPush fail"); }
+        if(asyncPush(asyncTypeAsync, appMainEventTimer, 0, 0, 0, 0)){ logError("asyncPush fail"); }
         actor->appTimerCount += APP_TIMER_INTERVAL;
         if(actor->appTimerCount >= 2000){
-            if(asyncPush(asyncTypeAsync, appTestEventTimer, NULL, NULL, NULL, NULL)){ logError("asyncPush fail"); }
+            if(asyncPush(asyncTypeAsync, appTestEventTimer, 0, 0, 0, 0)){ logError("asyncPush fail"); }
             actor->appTimerCount = 0;
         }
     }

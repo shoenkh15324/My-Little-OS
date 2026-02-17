@@ -3,16 +3,16 @@
  *  Created: 2026-02-15
  ******************************************************************************/
 #include "appCfgSelector.h"
-
 #include "core/feature/active.h"
 #include "core/feature/log.h"
+
 
 static void _actorThreadHandler(void* arg){
     activeObject* actor = (activeObject*)arg;
     asyncPacket async;
     if(actor->objState < objStateOpened){ logError("objState(%d) < objStateOpened", actor->objState); return; }
     for(;;){
-        #if APP_OS == OS_LINUX
+#if APP_OS == OS_LINUX
         int fd; uint64_t expired;
         if(!osalEpollWait(&actor->objEpoll, &fd, -1)){
             if(fd == actor->objEpoll.eventFd){ //logDebug("eventFd");
@@ -21,9 +21,27 @@ static void _actorThreadHandler(void* arg){
                     if(actor->appThreadHandler){ actor->appThreadHandler(actor, &async, actor->pPayloadBuffer); }
                 }
             }else if((actor->isMainThread) && (fd == actor->appTimer.timerFd)){ //logDebug("timerFd");
-                 read(fd, &expired, sizeof(expired));
+                read(fd, &expired, sizeof(expired));
                 if(actor->appTimerHandler) actor->appTimerHandler(actor);
             }
+        }
+#elif APP_OS == OS_WIN32
+        HANDLE handles[8];
+        int handleIdx = 0;
+        handles[handleIdx++] = actor->objSema.semaHandle;
+        if(actor->isMainThread && actor->appTimer.timerHandle){ handles[handleIdx++] = actor->appTimer.timerHandle; }
+        DWORD triggeredIdx  = WaitForMultipleObjects(handleIdx, handles, FALSE, INFINITE);
+        if((triggeredIdx >= WAIT_OBJECT_0) && (triggeredIdx  < (WAIT_OBJECT_0 + handleIdx))){ //logDebug("triggeredIdx");
+            int event = triggeredIdx  - WAIT_OBJECT_0;
+            if(event == 0){ //logDebug("semaphore event"); // semaphore event 
+                while(asyncPop(actor, &async, actor->pPayloadBuffer)){
+                    if(actor->appThreadHandler) actor->appThreadHandler(actor, &async, actor->pPayloadBuffer);
+                }
+            }else if((event == 1) && actor->appTimer.timerHandle){ //logDebug("timer event"); // timer event
+                if(actor->appTimerHandler) actor->appTimerHandler(actor);
+            }
+        }else{
+            logError("WaitForMultipleObjects fail or unexpected return (%lu)", triggeredIdx);
         }
 #else
         if(osalSemaphoreTake(&actor->objSema, -1)){

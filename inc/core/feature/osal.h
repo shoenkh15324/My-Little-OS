@@ -13,8 +13,8 @@ extern "C" {
     #include <semaphore.h>
     #include <sys/epoll.h>
     #include <time.h>
-#elif APP_OS == OS_WINDOW
-
+#elif APP_OS == OS_WIN32
+    #include <windows.h>
 #endif
 
 // Time / Tick
@@ -23,17 +23,19 @@ int64_t osalGetTimeUs(void);
 int64_t osalGetTimeNs(void);
 int osalGetTick(void);
 void osalGetDate(char*, size_t);
-void osalSleepMs(int);
-void osalSleepUs(int);
+void osalSleepMs(uint32_t);
+void osalSleepUs(uint32_t);
 
 // Timer
 typedef void (*osalTimerCb)(void*);
 typedef struct{
 #if APP_OS == OS_LINUX
     int timerFd;
+#elif APP_OS == OS_WIN32
+    HANDLE timerHandle;
+#endif
     osalTimerCb timerCb;
     void* timerArg;
-#endif
 } osalTimer;
 int osalTimerOpen(osalTimer*, osalTimerCb, void*, int);
 int osalTimerClose(osalTimer*);
@@ -43,7 +45,7 @@ int osalMalloc(void**, size_t);
 int osalFree(void*);
 
 // Thread
-typedef void (*oslThreadEntry)(void *);
+typedef void (*oslThreadCallback)(void *);
 typedef enum{
     osalThreadPriorityIdle = 0,
     osalThreadPriorityLow,
@@ -61,10 +63,13 @@ typedef struct{
 typedef struct{
 #if APP_OS == OS_LINUX
     pthread_t thread;
-    int isCreated;
+#elif APP_OS == OS_WIN32
+    HANDLE threadHandle;
+    DWORD threadId;
 #endif
+    int isCreated;
 } osalThread;
-int osalThreadOpen(osalThread*, const osalThreadAttribute*, oslThreadEntry, void*);
+int osalThreadOpen(osalThread*, const osalThreadAttribute*, oslThreadCallback, void*);
 int osalThreadSetPriority(osalThread*, osalThreadPriority);
 int osalThreadJoin(osalThread*);
 int osalThreadClose(osalThread*);
@@ -73,6 +78,8 @@ int osalThreadClose(osalThread*);
 typedef struct{
 #if APP_OS == OS_LINUX
     pthread_mutex_t mutex;
+#elif APP_OS == OS_WIN32
+    HANDLE mutexHandle;
 #endif
 } osalMutex;
 int osalMutexOpen(osalMutex*);
@@ -84,6 +91,8 @@ int osalMutexUnlock(osalMutex*);
 typedef struct{
 #if APP_OS == OS_LINUX
     sem_t sema;
+#elif APP_OS == OS_WIN32
+    HANDLE semaHandle;
 #endif
 } osalSemaphore;
 int osalSemaphoreOpen(osalSemaphore*, int);

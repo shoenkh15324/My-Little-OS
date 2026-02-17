@@ -7,7 +7,7 @@
 
 static void _appMainTimerHandler(void*);
 static void _appMainEventHandler(void*, void*, void*);
-static void _appTestEventHandler(void*, void*, void*);
+static void _appRenderEventHandler(void*, void*, void*);
 
 static appMain _appMain = {
     .actor.isMainThread = true,
@@ -22,16 +22,16 @@ static appMain _appMain = {
     .actor.appEventIdxEnd = appMainEventEnd,
     .actor.payloadBufferSize = APP_MAIN_THREAD_PAYLOAD_BUFFER_SIZE,
 };
-static appTest _appTest = {
+static appRender _appRender = {
     .actor.objState = objStateClosed, 
-    .actor.eventQueueSize = APP_TEST_THREAD_EVENT_QUEUE_SIZE,
-    .actor.appThreadAttr.name = "test",
+    .actor.eventQueueSize = APP_RENDER_THREAD_EVENT_QUEUE_SIZE,
+    .actor.appThreadAttr.name = "render",
     .actor.appThreadAttr.priority = osalThreadPriorityIdle,
-    .actor.appThreadAttr.statckSize = APP_TEST_THREAD_STACK_SIZE,
-    .actor.appThreadHandler = _appTestEventHandler,
-    .actor.appEventIdxStart = appTestEventStart,
-    .actor.appEventIdxEnd = appTestEventEnd,
-    .actor.payloadBufferSize = APP_TEST_THREAD_PAYLOAD_BUFFER_SIZE,
+    .actor.appThreadAttr.statckSize = APP_RENDER_THREAD_STACK_SIZE,
+    .actor.appThreadHandler = _appRenderEventHandler,
+    .actor.appEventIdxStart = appRenderEventStart,
+    .actor.appEventIdxEnd = appRenderEventEnd,
+    .actor.payloadBufferSize = APP_RENDER_THREAD_PAYLOAD_BUFFER_SIZE,
 };
 static void _appMainTimerHandler(void* arg){ //logDebug("_appMainTimerHandler");
     activeObject* actor = (activeObject*)arg;
@@ -39,7 +39,7 @@ static void _appMainTimerHandler(void* arg){ //logDebug("_appMainTimerHandler");
         if(asyncPush(asyncTypeAsync, appMainEventTimer, 0, 0, 0, 0)){ logError("asyncPush fail"); }
         actor->appTimerCount += APP_TIMER_INTERVAL;
         if(actor->appTimerCount >= 2000){
-            if(asyncPush(asyncTypeAsync, appTestEventTimer, 0, 0, 0, 0)){ logError("asyncPush fail"); }
+            if(asyncPush(asyncTypeAsync, appRenderEventTimer, 0, 0, 0, 0)){ logError("asyncPush fail"); }
             actor->appTimerCount = 0;
         }
     }
@@ -50,18 +50,18 @@ static void _appMainEventHandler(void* arg1, void* arg2, void* arg3){
     uint8_t* pPayload = (uint8_t*)arg3;
     osalMutexLock(&actor->objMutex, -1);
     switch(pAsync->eventId){
-        case appMainEventTimer: logDebug("appMainEventTimer");
+        case appMainEventTimer: //logDebug("appMainEventTimer");
             break;
     }
     osalMutexUnlock(&actor->objMutex);
 }
-static void _appTestEventHandler(void* arg1, void* arg2, void* arg3){
+static void _appRenderEventHandler(void* arg1, void* arg2, void* arg3){
     activeObject* actor = (activeObject*)arg1;
     asyncPacket* pAsync = (asyncPacket*)arg2;
     uint8_t* pPayload = (uint8_t*)arg3;
     osalMutexLock(&actor->objMutex, -1);
     switch(pAsync->eventId){
-        case appTestEventTimer: logDebug("appTestEventTimer");
+        case appRenderEventTimer: //logDebug("appRenderEventTimer");
             break;
     }
     osalMutexUnlock(&actor->objMutex);
@@ -70,16 +70,16 @@ int appClose(void){
     if(activeClose(&_appMain.actor)){ logError("activeClose fail");
         return retFail;
     }
-    if(activeClose(&_appTest.actor)){ logError("activeClose fail");
+    if(activeClose(&_appRender.actor)){ logError("activeClose fail");
         return retFail;
     }
     return retOk;
 }
 int appOpen(void){
-    if(activeOpen(&_appMain.actor)){ logError("activeOpen fail");
+    if(activeOpen(&_appMain.actor)){ logError("activeOpen fail / %s", _appMain.actor.appThreadAttr.name);
         return retFail;
     }
-    if(activeOpen(&_appTest.actor)){ logError("activeOpen fail");
+    if(activeOpen(&_appRender.actor)){ logError("activeOpen fail / %s", _appRender.actor.appThreadAttr.name);
         return retFail;
     }
 appOpenExit:
