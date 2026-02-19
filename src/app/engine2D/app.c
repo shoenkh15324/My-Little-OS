@@ -78,20 +78,23 @@ static void _appRenderEventHandler(void* arg1, void* arg2, void* arg3){
             driverCommonSync(driverCommonSyncTimer, 0, 0, 0, 0);
             serviceCommonSync(serviceCommonSyncTimer, 0, 0, 0, 0);
             break;
-        case appRenderEventGfxOpenglInit:
+        case appRenderEventOpenglInit:
             driverOpenglSync(driverOpenglSyncInit, 0, 0, 0, 0);
             break;
-        case appRenderEventGfxOpenglDeinit:
+        case appRenderEventOpenglDeinit:
             driverOpenglSync(driverOpenglSyncDeinit, 0, 0, 0, 0);
             break;
-        case appRenderEventGfxOpenglSyncClear:
+        case appRenderEventOpenglSyncClear:
             driverOpenglSync(driverOpenglSyncClear, 0, 0, 0, 0);
             break;
-        case appRenderEventGfxOpenglSyncSetClearColor:
+        case appRenderEventOpenglSyncSetClearColor:
             driverOpenglSync(driverOpenglSyncSetClearColor, pAsync->arg1, pAsync->arg2, pAsync->arg3, 0);
             break;
-        case appRenderEventGfxOpenglSyncSetColor:
+        case appRenderEventOpenglSyncSetColor:
             driverOpenglSync(driverOpenglSyncSetColor, pAsync->arg1, pAsync->arg2, pAsync->arg3, 0);
+            break;
+        case appRenderEventOpenglSyncUpdateViewport:
+            driverOpenglSync(driverOpenglSyncUpdateViewport, pAsync->arg1, pAsync->arg2, 0, 0);
             break;
     }
     osalMutexUnlock(&actor->objMutex);
@@ -115,13 +118,13 @@ int appOpen(void){
     if(asyncPush(asyncTypeAsync, appMainEventPlatformWin32CreateWindow, (uintptr_t)"engin2D", 700, 500, 0)){logError("appMainEventPlatformWin32CreateWindow fail");
         return retFail;
     }
-    if(asyncPush(asyncTypeAsync, appRenderEventGfxOpenglInit, 0, 0, 0, 0)){logError("appRenderEventGfxOpenglInit fail");
+    if(asyncPush(asyncTypeAsync, appRenderEventOpenglInit, 0, 0, 0, 0)){logError("appRenderEventOpenglInit fail");
         return retFail;
     }
-    if(asyncPush(asyncTypeAsync, appRenderEventGfxOpenglSyncSetClearColor, 0, 0, 0, 0)){logError("appRenderEventGfxOpenglInit fail");
+    if(asyncPush(asyncTypeAsync, appRenderEventOpenglSyncSetClearColor, 0, 0, 0, 0)){logError("appRenderEventOpenglInit fail");
         return retFail;
     }
-    if(asyncPush(asyncTypeAsync, appRenderEventGfxOpenglSyncSetColor, 255, 0, 0, 0)){logError("appRenderEventGfxOpenglInit fail");
+    if(asyncPush(asyncTypeAsync, appRenderEventOpenglSyncSetColor, 255, 0, 0, 0)){logError("appRenderEventOpenglInit fail");
         return retFail;
     }
 appOpenExit:

@@ -21,11 +21,12 @@ typedef enum{
     // appTest
     appRenderEventStart = 100,
         appRenderEventTimer,
-        appRenderEventGfxOpenglInit,
-        appRenderEventGfxOpenglDeinit,
-        appRenderEventGfxOpenglSyncClear,
-        appRenderEventGfxOpenglSyncSetClearColor,
-        appRenderEventGfxOpenglSyncSetColor,
+        appRenderEventOpenglInit,
+        appRenderEventOpenglDeinit,
+        appRenderEventOpenglSyncClear,
+        appRenderEventOpenglSyncSetClearColor,
+        appRenderEventOpenglSyncSetColor,
+        appRenderEventOpenglSyncUpdateViewport,
     appRenderEventEnd = 199,
 } appEventList;
 
