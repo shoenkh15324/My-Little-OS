@@ -17,8 +17,6 @@ typedef enum{
         appMainEventPlatformWin32CreateWindow,
         appMainEventPlatformWin32DestroyWindow,
         appMainEventPlatformWin32ResizeWindow,
-        // OpenGL
-        appMainEventOpenglSyncUpdateViewport,
     appMainEventEnd = 99,
 } appEventList;
 

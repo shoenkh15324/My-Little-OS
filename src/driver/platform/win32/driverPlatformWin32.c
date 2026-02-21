@@ -19,8 +19,8 @@ static LRESULT CALLBACK _driverPlatformWin32WindowProc(HWND hwnd, UINT msg, WPAR
             asyncPush(asyncTypeAsync, appMainEventPlatformWin32ResizeWindow, LOWORD(lParam), HIWORD(lParam), 0 ,0);
 #if APP_ENGINE_2D
             asyncPush(asyncTypeAsync, appRenderEventOpenglSyncUpdateViewport, LOWORD(lParam), HIWORD(lParam), 0 ,0);
-#else
-            asyncPush(asyncTypeAsync, appMainEventOpenglSyncUpdateViewport, LOWORD(lParam), HIWORD(lParam), 0 ,0);
+#elif APP_EUCLID_ENGINE
+            // TODO
 #endif
             return 0;
         case WM_PAINT:

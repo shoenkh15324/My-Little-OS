@@ -77,11 +77,21 @@ elseif(APP_TARGET STREQUAL "euclid_engine")
     # jolt physic
     set(JOLT_ROOT_DIR "${EXTERNAL_DIR}/Jolt")
     file(GLOB_RECURSE JOLT_SRCS "${JOLT_ROOT_DIR}/*.cpp")
+    # bgfx
+    set(BGFX_DIR ${EXTERNAL_DIR}/bgfx)
+    set(BX_DIR ${EXTERNAL_DIR}/bx)
+    set(BIMG_DIR ${EXTERNAL_DIR}/bimg)
+    file(GLOB BGFX_SOURCES "${BGFX_DIR}/src/*.cpp")
+    file(GLOB BX_SOURCES   "${BX_DIR}/src/*.cpp")
+    file(GLOB BIMG_SOURCES "${BIMG_DIR}/src/*.cpp")
+    set(BGFX_SRCS ${BGFX_SOURCES} ${BX_SOURCES} ${BIMG_SOURCES})
+
     set(APP_SRCS
         ${JOLT_SRCS}
+        ${BGFX_SRCS}
         # driver
         src/driver/platform/win32/driverPlatformWin32.c
-        src/driver/gfx/opengl/driverOpengl.c
+        src/driver/gfx/bgfx/driverBgfx.c
         src/driver/physicsBackend/jolt/driverJolt.c
         src/driver/physicsBackend/jolt/driverJoltBridge.cpp
         # service
@@ -95,6 +105,10 @@ elseif(APP_TARGET STREQUAL "euclid_engine")
         JPH_PROFILE 
         JPH_FLOATING_POINT_EXCEPTIONS_ENABLED
     )
+    set(BGFX_DEFINITIONS
+        __STDC_FORMAT_MACROS
+        BGFX_CONFIG_RENDERER_OPENGL=1
+    )
     if(WIN32)
         list(APPEND JOLT_DEFINITIONS JPH_PLATFORM_WINDOWS)
     endif()
@@ -106,16 +120,23 @@ set(SRCS ${COMMON_SRCS} ${APP_SRCS})
 # 5. 타겟 생성 및 설정
 add_executable(${TARGET_NAME} ${SRCS})
 if(APP_TARGET STREQUAL "euclid_engine")
-    # Jolt/Jolt.h를 미리 컴파일하여 빌드 속도를 비약적으로 향상시킵니다.
-    target_precompile_headers(${TARGET_NAME} PRIVATE 
+    target_precompile_headers(${TARGET_NAME} PRIVATE  # Jolt/Jolt.h를 미리 컴파일하여 빌드 속도를 비약적으로 향상.
         "$<$<COMPILE_LANGUAGE:CXX>:Jolt/Jolt.h>"
     )
 endif()
 # 6. 인클루드 경로 설정
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/inc)
 if(APP_TARGET STREQUAL "euclid_engine")
-    target_include_directories(${TARGET_NAME} PRIVATE "${EXTERNAL_DIR}")
-    target_compile_definitions(${TARGET_NAME} PRIVATE ${JOLT_DEFINITIONS})
+    target_include_directories(${TARGET_NAME} PRIVATE 
+        "${EXTERNAL_DIR}"
+        "${BGFX_DIR}/include"
+        "${BX_DIR}/include"
+        "${BX_DIR}/3rdparty" # bx 의존성 헤더들이 여기 있음
+        "${BIMG_DIR}/include"
+    )
+    target_compile_definitions(${TARGET_NAME} PRIVATE
+        ${JOLT_DEFINITIONS} ${BGFX_DEFINITIONS}
+    )
     set_target_properties(${TARGET_NAME} PROPERTIES
         CXX_STANDARD 17
         CXX_STANDARD_REQUIRED ON
@@ -131,4 +152,5 @@ target_compile_definitions(${TARGET_NAME} PUBLIC
 if(WIN32)
     list(APPEND EXTERNAL_LIBS opengl32 gdi32 user32)
 endif()
+
 target_link_libraries(${TARGET_NAME} PRIVATE ${EXTERNAL_LIBS})
