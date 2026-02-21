@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(myLittleOS LANGUAGES C CXX)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # 1. 프로젝트 설정 (App Target)
@@ -78,14 +78,8 @@ elseif(APP_TARGET STREQUAL "euclid_engine")
     set(JOLT_ROOT_DIR "${EXTERNAL_DIR}/Jolt")
     file(GLOB_RECURSE JOLT_SRCS "${JOLT_ROOT_DIR}/*.cpp")
     # bgfx
-    set(BGFX_DIR ${EXTERNAL_DIR}/bgfx)
-    set(BX_DIR ${EXTERNAL_DIR}/bx)
-    set(BIMG_DIR ${EXTERNAL_DIR}/bimg)
-    file(GLOB BGFX_SOURCES "${BGFX_DIR}/src/*.cpp")
-    file(GLOB BX_SOURCES   "${BX_DIR}/src/*.cpp")
-    file(GLOB BIMG_SOURCES "${BIMG_DIR}/src/*.cpp")
-    set(BGFX_SRCS ${BGFX_SOURCES} ${BX_SOURCES} ${BIMG_SOURCES})
-
+    set(BGFX_ROOT_DIR ${EXTERNAL_DIR}/bgfx)
+    # myLittleOS
     set(APP_SRCS
         ${JOLT_SRCS}
         ${BGFX_SRCS}
@@ -100,6 +94,11 @@ elseif(APP_TARGET STREQUAL "euclid_engine")
         src/app/euclidEngine/app.c
         src/app/euclidEngine/appBridge.c     
     )
+    find_library(LIB_BGFX NAMES bgfxRelease bgfx PATHS "${BGFX_ROOT_DIR}/lib")
+    find_library(LIB_BIMG NAMES bimgRelease bimg PATHS "${BGFX_ROOT_DIR}/lib")
+    find_library(LIB_BX NAMES bxRelease bx PATHS "${BGFX_ROOT_DIR}/lib")
+    list(APPEND EXTERNAL_LIBS ${LIB_BGFX} ${LIB_BIMG} ${LIB_BX})
+
     set(JOLT_DEFINITIONS # Jolt용 컴파일 정의 추가
         JPH_DEBUG 
         JPH_PROFILE 
@@ -108,6 +107,7 @@ elseif(APP_TARGET STREQUAL "euclid_engine")
     set(BGFX_DEFINITIONS
         __STDC_FORMAT_MACROS
         BGFX_CONFIG_RENDERER_OPENGL=1
+        BX_PLATFORM_WINDOWS=1
     )
     if(WIN32)
         list(APPEND JOLT_DEFINITIONS JPH_PLATFORM_WINDOWS)
@@ -115,9 +115,8 @@ elseif(APP_TARGET STREQUAL "euclid_engine")
 else()
     message(FATAL_ERROR "Unknown APP_TARGET: ${APP_TARGET}")
 endif()
-# 4-2. 최종 소스 조합
-set(SRCS ${COMMON_SRCS} ${APP_SRCS})
 # 5. 타겟 생성 및 설정
+set(SRCS ${COMMON_SRCS} ${APP_SRCS})
 add_executable(${TARGET_NAME} ${SRCS})
 if(APP_TARGET STREQUAL "euclid_engine")
     target_precompile_headers(${TARGET_NAME} PRIVATE  # Jolt/Jolt.h를 미리 컴파일하여 빌드 속도를 비약적으로 향상.
@@ -129,16 +128,16 @@ target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/inc)
 if(APP_TARGET STREQUAL "euclid_engine")
     target_include_directories(${TARGET_NAME} PRIVATE 
         "${EXTERNAL_DIR}"
-        "${BGFX_DIR}/include"
-        "${BX_DIR}/include"
-        "${BX_DIR}/3rdparty" # bx 의존성 헤더들이 여기 있음
-        "${BIMG_DIR}/include"
+        "${BGFX_ROOT_DIR}/include"
     )
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+        target_compile_options(${TARGET_NAME} PRIVATE -fpermissive)
+    endif()
     target_compile_definitions(${TARGET_NAME} PRIVATE
         ${JOLT_DEFINITIONS} ${BGFX_DEFINITIONS}
     )
     set_target_properties(${TARGET_NAME} PROPERTIES
-        CXX_STANDARD 17
+        CXX_STANDARD 20
         CXX_STANDARD_REQUIRED ON
     )
 endif()
@@ -150,7 +149,7 @@ target_compile_definitions(${TARGET_NAME} PUBLIC
 
 # 7. 라이브러리 링크
 if(WIN32)
-    list(APPEND EXTERNAL_LIBS opengl32 gdi32 user32)
+    list(APPEND EXTERNAL_LIBS opengl32 gdi32 user32 psapi)
 endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE ${EXTERNAL_LIBS})

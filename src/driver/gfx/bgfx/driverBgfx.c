@@ -3,8 +3,8 @@
  *  Created: 2026-02-21
  ******************************************************************************/
 #include "driver/driverCommon.h"
-
 #if APP_DRIVER_GFX == DRIVER_GFX_BGFX
+#include <bgfx/c99/bgfx.h>
 
 static driverBgfx _driverBgfx = {
     .objState = objStateClosed,
