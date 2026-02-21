@@ -5,24 +5,24 @@
 #include "driver/driverCommon.h"
 
 int driverCommonClose(void){
-#if APP_ENGINE_2D || APP_EUCLID_ENGINE
-    if(driverOpenglClose()){ logError("driverOpenglClose fail");
-        return -1;
-    }
-    if(driverPlatformWin32Close()){ logError("driverPlatformWin32Close fail");
-        return -1;
-    }
+#if APP_ENGINE_2D
+    if(driverOpenglClose()){ logError("driverOpenglClose fail"); return -1; }
+    if(driverPlatformWin32Close()){ logError("driverPlatformWin32Close fail"); return -1; }
+#elif APP_EUCLID_ENGINE
+    if(driverJoltClose()){ logError("driverJoltClose fail"); return -1; }
+    if(driverOpenglClose()){ logError("driverOpenglClose fail"); return -1; }
+    if(driverPlatformWin32Close()){ logError("driverPlatformWin32Close fail"); return -1; }
 #endif
     return 0;
 }
 int driverCommonOpen(void){
-#if APP_ENGINE_2D || APP_EUCLID_ENGINE
-    if(driverPlatformWin32Open()){ logError("driverPlatformWin32Open fail");
-        return -1;
-    }
-    if(driverOpenglOpen()){ logError("driverOpenglOpen fail");
-        return -1;
-    }
+#if APP_ENGINE_2D
+    if(driverPlatformWin32Open()){ logError("driverPlatformWin32Open fail"); return -1; }
+    if(driverOpenglOpen()){ logError("driverOpenglOpen fail"); return -1; }
+#elif APP_EUCLID_ENGINE
+    if(driverJoltOpen()){ logError("driverJoltOpen fail"); return -1; }
+    if(driverPlatformWin32Open()){ logError("driverPlatformWin32Open fail"); return -1; }
+    if(driverOpenglOpen()){ logError("driverOpenglOpen fail"); return -1; }
 #endif
     return 0;
 }

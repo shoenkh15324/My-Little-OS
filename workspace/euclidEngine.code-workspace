@@ -8,13 +8,17 @@
     "settings": {
         "files.exclude": {
             "**/.git": true,
-            "**/build": true
+            "**/build": true,
+            "**/inc/core/physics": true,
+            "**/src/core/physics": true,
         },
         "search.exclude": {
             "**/.git": true,
             "**/build": true,
             "**/inc/app/sample": true,
             "**/src/app/sample": true,
+            "**/inc/core/physics": true,
+            "**/src/core/physics": true,
         },
         "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
         "C_Cpp.default.defines": [

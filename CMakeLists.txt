@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.10)
 project(myLittleOS LANGUAGES C CXX)
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 # 1. 프로젝트 설정 (App Target)
 if(NOT DEFINED APP_TARGET)
     set(APP_TARGET "euclid_engine")
@@ -8,6 +11,7 @@ endif()
 
 set(TARGET_NAME myLittleOS)
 set(APP_DEFINE "APP_${APP_TARGET}")
+set(EXTERNAL_DIR "${CMAKE_SOURCE_DIR}/external")
 string(TOUPPER "${APP_DEFINE}" APP_DEFINE_UPPER)
 
 message(STATUS "--------------------------------------------")
@@ -22,7 +26,6 @@ endif()
 
 # 3. 종속성 라이브러리 찾기
 find_package(Threads REQUIRED)
-
 set(EXTERNAL_LIBS Threads::Threads)
 if(UNIX)
     find_library(RT_LIBRARY rt)
@@ -71,37 +74,60 @@ if(APP_TARGET STREQUAL "engine_2d")
         src/app/engine2D/appBridge.c
     )
 elseif(APP_TARGET STREQUAL "euclid_engine")
+    # jolt physic
+    set(JOLT_ROOT_DIR "${EXTERNAL_DIR}/Jolt")
+    file(GLOB_RECURSE JOLT_SRCS "${JOLT_ROOT_DIR}/*.cpp")
     set(APP_SRCS
+        ${JOLT_SRCS}
         # driver
         src/driver/platform/win32/driverPlatformWin32.c
         src/driver/gfx/opengl/driverOpengl.c
+        src/driver/physicsBackend/jolt/driverJolt.c
+        src/driver/physicsBackend/jolt/driverJoltBridge.cpp
         # service
         src/service/rendering/serviceRendering3D.c
         # app
         src/app/euclidEngine/app.c
-        src/app/euclidEngine/appBridge.c
+        src/app/euclidEngine/appBridge.c     
     )
+    set(JOLT_DEFINITIONS # Jolt용 컴파일 정의 추가
+        JPH_DEBUG 
+        JPH_PROFILE 
+        JPH_FLOATING_POINT_EXCEPTIONS_ENABLED
+    )
+    if(WIN32)
+        list(APPEND JOLT_DEFINITIONS JPH_PLATFORM_WINDOWS)
+    endif()
 else()
     message(FATAL_ERROR "Unknown APP_TARGET: ${APP_TARGET}")
 endif()
 # 4-2. 최종 소스 조합
-set(SRCS
-    ${COMMON_SRCS}
-    ${APP_SRCS}
-)
+set(SRCS ${COMMON_SRCS} ${APP_SRCS})
 # 5. 타겟 생성 및 설정
 add_executable(${TARGET_NAME} ${SRCS})
-
-target_include_directories(${TARGET_NAME} PRIVATE 
-    ${CMAKE_SOURCE_DIR}/inc
-)
+if(APP_TARGET STREQUAL "euclid_engine")
+    # Jolt/Jolt.h를 미리 컴파일하여 빌드 속도를 비약적으로 향상시킵니다.
+    target_precompile_headers(${TARGET_NAME} PRIVATE 
+        "$<$<COMPILE_LANGUAGE:CXX>:Jolt/Jolt.h>"
+    )
+endif()
+# 6. 인클루드 경로 설정
+target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/inc)
+if(APP_TARGET STREQUAL "euclid_engine")
+    target_include_directories(${TARGET_NAME} PRIVATE "${EXTERNAL_DIR}")
+    target_compile_definitions(${TARGET_NAME} PRIVATE ${JOLT_DEFINITIONS})
+    set_target_properties(${TARGET_NAME} PROPERTIES
+        CXX_STANDARD 17
+        CXX_STANDARD_REQUIRED ON
+    )
+endif()
 
 target_compile_definitions(${TARGET_NAME} PUBLIC
     MY_LITTLE_OS=1
     ${APP_DEFINE_UPPER}=1
 )
 
-# 6. 라이브러리 링크
+# 7. 라이브러리 링크
 if(WIN32)
     list(APPEND EXTERNAL_LIBS opengl32 gdi32 user32)
 endif()

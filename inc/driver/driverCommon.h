@@ -17,6 +17,10 @@
 #if APP_DRIVER_GFX == DRIVER_GFX_OPENGL
     #include "driver/gfx/opengl/driverOpengl.h"
 #endif
+#if APP_DRIVER_PHYSICS_BACKEND == DRIVER_PHYSICS_BACKEND_JOLT
+    #include "driver/physicsBackend/jolt/driverJolt.h"
+    #include "driver/physicsBackend/jolt/driverJoltBridge.h"
+#endif
 
 enum{
     driverCommonSyncTimer = 0,

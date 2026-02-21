@@ -43,6 +43,7 @@ typedef enum{
         #define DRIVER_PLATFORM_WIN32_WM_USER_RESIZE (WM_USER + 1)
     #endif
     #define APP_DRIVER_GFX DRIVER_GFX_OPENGL
+    #define APP_DRIVER_PHYSICS_BACKEND DRIVER_PHYSICS_BACKEND_JOLT
 #elif APP_BOARD
     #define APP_DRIVER_XXX 0
 #endif
